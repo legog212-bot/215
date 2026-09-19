@@ -24,15 +24,13 @@ export default async function LocaleLayout({
       <body>
         <NextIntlClientProvider>
           <div className="mx-auto flex min-h-dvh max-w-lg flex-col px-4">
-            <header className="flex items-center justify-between py-5">
-              <Link href="/" className="flex items-center gap-3">
-                <Logo size={52} />
-                <div className="leading-tight">
-                  <p className="text-xl font-bold tracking-wide text-brand-ink">№215</p>
-                  <p className="text-[11px] uppercase tracking-widest text-brand-gold">
-                    Beauty Salon
-                  </p>
-                </div>
+            <header className="flex items-center justify-between py-3">
+              <Link
+                href="/"
+                className="inline-flex items-center transition-transform hover:scale-[1.02] active:scale-[0.98]"
+                aria-label="Beauty Salon №215"
+              >
+                <Logo height={74} className="h-[74px] w-auto" />
               </Link>
               <LanguageSwitcher />
             </header>
