@@ -17,19 +17,19 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'rate_limited' }, { status: 429 });
   }
 
-  const hash = process.env.ADMIN_PANEL_PASSWORD_HASH;
-  const authPassword = process.env.ADMIN_AUTH_PASSWORD;
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!hash || !authPassword || !url || !anonKey) {
-    return NextResponse.json({ error: 'not configured' }, { status: 503 });
+  if (!url || !anonKey) {
+    return NextResponse.json({ error: 'not configured: missing Supabase URL or Anon Key' }, { status: 503 });
   }
 
   const { password } = await req.json().catch(() => ({ password: '' }));
-  const ok = typeof password === 'string' && (await bcrypt.compare(password, hash));
-  if (!ok) {
-    return NextResponse.json({ error: 'wrong_password' }, { status: 401 });
+  if (!password || typeof password !== 'string') {
+    return NextResponse.json({ error: 'empty_password' }, { status: 400 });
   }
+
+  const hash = process.env.ADMIN_PANEL_PASSWORD_HASH;
+  const authPassword = process.env.ADMIN_AUTH_PASSWORD;
 
   const response = NextResponse.json({ ok: true });
   const supabase = createServerClient(url, anonKey, {
@@ -45,12 +45,33 @@ export async function POST(req: NextRequest) {
     },
   });
 
-  const { error } = await supabase.auth.signInWithPassword({
+  // Attempt 1: Direct sign-in using the entered password as admin@salon215.local password
+  let authResult = await supabase.auth.signInWithPassword({
     email: ADMIN_AUTH_EMAIL,
-    password: authPassword,
+    password: password,
   });
-  if (error) {
-    return NextResponse.json({ error: 'auth' }, { status: 500 });
+
+  // Attempt 2: If direct failed, check if entered password matches ADMIN_AUTH_PASSWORD or bcrypt hash
+  if (authResult.error && authPassword) {
+    let matches = password === authPassword;
+    if (!matches && hash) {
+      matches = await bcrypt.compare(password, hash).catch(() => false);
+    }
+    if (matches) {
+      authResult = await supabase.auth.signInWithPassword({
+        email: ADMIN_AUTH_EMAIL,
+        password: authPassword,
+      });
+    }
   }
+
+  if (authResult.error) {
+    console.error('[Admin Login Error]:', authResult.error.message);
+    return NextResponse.json(
+      { error: authResult.error.message || 'invalid_credentials' },
+      { status: 401 }
+    );
+  }
+
   return response;
 }

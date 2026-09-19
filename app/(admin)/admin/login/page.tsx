@@ -20,18 +20,34 @@ export default function AdminLoginPage() {
     e.preventDefault();
     setBusy(true);
     setError(null);
-    const res = await fetch('/api/admin/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ password }),
-    });
-    if (!res.ok) {
-      setError(t('login.error'));
+    try {
+      const res = await fetch('/api/admin/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        if (res.status === 503) {
+          setError('Supabase не настроен в Netlify (проверьте переменные окружения).');
+        } else if (res.status === 429) {
+          setError('Слишком много попыток входа. Подождите 1 минуту.');
+        } else if (data.error === 'Invalid login credentials' || res.status === 401) {
+          setError('Неверный пароль. Убедитесь, что ввели пароль пользователя admin@salon215.local из Supabase.');
+        } else if (data.error === 'Email not confirmed') {
+          setError('Email не подтверждён в Supabase. Отметьте "Auto Confirm User" в Supabase Dashboard.');
+        } else {
+          setError(data.error || t('login.error'));
+        }
+        setBusy(false);
+        return;
+      }
+      router.push('/admin/calendar');
+      router.refresh();
+    } catch {
+      setError('Ошибка сети при входе. Попробуйте ещё раз.');
       setBusy(false);
-      return;
     }
-    router.push('/admin/calendar');
-    router.refresh();
   };
 
   return (
