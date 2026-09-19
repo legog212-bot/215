@@ -4,7 +4,13 @@ import { createAnonServerClient, supabaseConfigured } from '@/lib/supabase/serve
 import { BookingFlow } from '@/components/booking-flow';
 import type { Master, Service, ServiceCategory } from '@/lib/types';
 
-export const dynamic = 'force-dynamic';
+import { routing } from '@/i18n/routing';
+
+export const revalidate = 60;
+
+export function generateStaticParams() {
+  return routing.locales.map((locale) => ({ locale }));
+}
 
 export default async function BookingPage({
   params,

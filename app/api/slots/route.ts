@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServiceClient, supabaseConfigured } from '@/lib/supabase/server';
-import { availableSlots, servicesDuration } from '@/lib/booking';
+import { availableSlots, availableSlotsSummary, servicesDuration } from '@/lib/booking';
 import { bookingDates } from '@/lib/slots';
 import { todayTbilisi } from '@/lib/tz';
 
@@ -24,12 +24,15 @@ export async function GET(req: NextRequest) {
   const master = masterId && masterId !== 'any' ? masterId : null;
 
   if (mode === 'summary') {
-    const days: Record<string, number> = {};
-    for (const date of bookingDates()) {
-      days[date] = (await availableSlots({ supabase, date, masterId: master, durationMinutes: duration }))
-        .length;
-    }
-    return NextResponse.json({ days });
+    const days = await availableSlotsSummary({
+      supabase,
+      dates: bookingDates(),
+      masterId: master,
+      durationMinutes: duration,
+    });
+    const res = NextResponse.json({ days });
+    res.headers.set('Cache-Control', 'public, max-age=15, stale-while-revalidate=45');
+    return res;
   }
 
   const date = p.get('date') ?? '';
@@ -37,5 +40,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'date' }, { status: 400 });
   }
   const slots = await availableSlots({ supabase, date, masterId: master, durationMinutes: duration });
-  return NextResponse.json({ slots });
+  const res = NextResponse.json({ slots });
+  res.headers.set('Cache-Control', 'public, max-age=15, stale-while-revalidate=45');
+  return res;
 }

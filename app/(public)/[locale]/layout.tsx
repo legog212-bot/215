@@ -7,7 +7,9 @@ import { Link } from '@/i18n/navigation';
 import { Toaster } from '@/components/ui/sonner';
 import '../../globals.css';
 
-export const dynamic = 'force-dynamic';
+export function generateStaticParams() {
+  return routing.locales.map((locale) => ({ locale }));
+}
 
 export default async function LocaleLayout({
   children,

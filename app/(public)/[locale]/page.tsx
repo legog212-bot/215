@@ -6,7 +6,13 @@ import { Link } from '@/i18n/navigation';
 import { formatPrice, serviceName, type Service, type ServiceCategory } from '@/lib/types';
 import { Clock } from 'lucide-react';
 
-export const dynamic = 'force-dynamic';
+import { routing } from '@/i18n/routing';
+
+export const revalidate = 60;
+
+export function generateStaticParams() {
+  return routing.locales.map((locale) => ({ locale }));
+}
 
 export default async function HomePage({
   params,
@@ -40,7 +46,9 @@ export default async function HomePage({
         <h1 className="text-2xl font-bold">{t('title')}</h1>
         <p className="mt-2 text-sm text-white/70">{t('subtitle')}</p>
         <Button asChild size="lg" className="mt-5">
-          <Link href="/booking">{t('bookCta')}</Link>
+          <Link href="/booking" prefetch={true}>
+            {t('bookCta')}
+          </Link>
         </Button>
       </section>
 
@@ -60,7 +68,8 @@ export default async function HomePage({
                     <Link
                       key={s.id}
                       href={{ pathname: '/booking', query: { services: s.id } }}
-                      className="flex items-center justify-between gap-3 px-4 py-3 transition-colors hover:bg-accent"
+                      prefetch={true}
+                      className="flex items-center justify-between gap-3 px-4 py-3 transition-colors hover:bg-accent active:bg-accent/80"
                     >
                       <div>
                         <p className="font-medium">{serviceName(s, locale)}</p>

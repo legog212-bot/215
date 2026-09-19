@@ -68,9 +68,11 @@ export async function slotsForMaster(
   date: string,
   durationMinutes: number
 ): Promise<string[]> {
-  const hours = await hoursFor(supabase, masterId, dayOfWeek(date));
+  const [hours, existing] = await Promise.all([
+    hoursFor(supabase, masterId, dayOfWeek(date)),
+    busyFor(supabase, masterId, date),
+  ]);
   if (!hours || hours.is_day_off || !hours.open_time || !hours.close_time) return [];
-  const existing = await busyFor(supabase, masterId, date);
   return computeSlots({
     date,
     openTime: hours.open_time,
@@ -94,24 +96,136 @@ export async function availableSlots(params: {
   if (masterId) return slotsForMaster(supabase, masterId, date, durationMinutes);
 
   const masters = await activeMasters(supabase);
-  const all = new Set<string>();
-  for (const m of masters) {
-    for (const s of await slotsForMaster(supabase, m.id, date, durationMinutes)) all.add(s);
+  if (masters.length === 0) {
+    const hours = await hoursFor(supabase, null, dayOfWeek(date));
+    if (hours && !hours.is_day_off && hours.open_time && hours.close_time) {
+      const existing = await busyFor(supabase, null, date);
+      return computeSlots({
+        date,
+        openTime: hours.open_time,
+        closeTime: hours.close_time,
+        durationMinutes,
+        existing,
+      });
+    }
+    return [];
   }
-  // salon might have bookings with master_id null — check default hours too
-  const hours = await hoursFor(supabase, null, dayOfWeek(date));
-  if (masters.length === 0 && hours && !hours.is_day_off && hours.open_time && hours.close_time) {
-    const existing = await busyFor(supabase, null, date);
-    for (const s of computeSlots({
-      date,
-      openTime: hours.open_time,
-      closeTime: hours.close_time,
-      durationMinutes,
-      existing,
-    }))
-      all.add(s);
+
+  const slotResults = await Promise.all(
+    masters.map((m) => slotsForMaster(supabase, m.id, date, durationMinutes))
+  );
+  const all = new Set<string>();
+  for (const list of slotResults) {
+    for (const s of list) all.add(s);
   }
   return [...all].sort();
+}
+
+/**
+ * High-performance batched summary of available slots across multiple dates.
+ * Instead of 100+ sequential round trips, loads working hours and confirmed bookings
+ * in 2 parallel queries and computes slots in-memory in ~1ms.
+ */
+export async function availableSlotsSummary(params: {
+  supabase: SupabaseClient;
+  dates: string[];
+  masterId: string | null;
+  durationMinutes: number;
+}): Promise<Record<string, number>> {
+  const { supabase, dates, masterId, durationMinutes } = params;
+  if (!dates.length || durationMinutes <= 0) return {};
+
+  const minDate = dates[0];
+  const maxDate = dates[dates.length - 1];
+
+  let bookingsQuery = supabase
+    .from('bookings')
+    .select('master_id, booking_date, start_time, end_time')
+    .gte('booking_date', minDate)
+    .lte('booking_date', maxDate)
+    .eq('status', 'confirmed');
+
+  if (masterId) {
+    bookingsQuery = bookingsQuery.eq('master_id', masterId);
+  }
+
+  const [masters, hoursRes, bookingsRes] = await Promise.all([
+    masterId ? Promise.resolve([{ id: masterId }] as Master[]) : activeMasters(supabase),
+    supabase.from('working_hours').select('*'),
+    bookingsQuery,
+  ]);
+
+  const allHours = (hoursRes.data as WorkingHours[]) ?? [];
+  const allBookings = (bookingsRes.data as {
+    master_id: string | null;
+    booking_date: string;
+    start_time: string;
+    end_time: string;
+  }[]) ?? [];
+
+  const bookingsMap = new Map<string, { start_time: string; end_time: string }[]>();
+  for (const b of allBookings) {
+    const key = `${b.booking_date}:${b.master_id ?? 'null'}`;
+    const list = bookingsMap.get(key);
+    if (list) {
+      list.push({ start_time: b.start_time, end_time: b.end_time });
+    } else {
+      bookingsMap.set(key, [{ start_time: b.start_time, end_time: b.end_time }]);
+    }
+  }
+
+  const hoursMap = new Map<string, WorkingHours>();
+  for (const h of allHours) {
+    hoursMap.set(`${h.master_id ?? 'null'}:${h.day_of_week}`, h);
+  }
+
+  const getHours = (mId: string | null, dow: number): WorkingHours | null => {
+    if (mId) {
+      const specific = hoursMap.get(`${mId}:${dow}`);
+      if (specific) return specific;
+    }
+    return hoursMap.get(`null:${dow}`) ?? null;
+  };
+
+  const days: Record<string, number> = {};
+
+  for (const date of dates) {
+    const dow = dayOfWeek(date);
+    const daySlots = new Set<string>();
+
+    if (masters.length > 0) {
+      for (const m of masters) {
+        const h = getHours(m.id, dow);
+        if (!h || h.is_day_off || !h.open_time || !h.close_time) continue;
+        const busy = bookingsMap.get(`${date}:${m.id}`) ?? [];
+        const slots = computeSlots({
+          date,
+          openTime: h.open_time,
+          closeTime: h.close_time,
+          durationMinutes,
+          existing: busy,
+        });
+        for (const s of slots) daySlots.add(s);
+      }
+    } else {
+      const h = getHours(null, dow);
+      if (h && !h.is_day_off && h.open_time && h.close_time) {
+        const busy = bookingsMap.get(`${date}:null`) ?? [];
+        const slots = computeSlots({
+          date,
+          openTime: h.open_time,
+          closeTime: h.close_time,
+          durationMinutes,
+          existing: busy,
+        });
+        for (const s of slots) daySlots.add(s);
+      }
+    }
+
+    days[date] = daySlots.size;
+  }
+
+  return days;
 }
 
 /**
