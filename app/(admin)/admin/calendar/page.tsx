@@ -13,6 +13,8 @@ import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
+import { useAdminAuth } from '@/components/admin/auth-sync';
+
 type BookingRow = Booking & {
   masters: { name: string } | null;
 };
@@ -29,6 +31,7 @@ const MASTER_COLORS = ['bg-amber-200', 'bg-sky-200', 'bg-emerald-200', 'bg-rose-
 
 export default function AdminCalendarPage() {
   const { t, lang } = useAdminT();
+  const { isReady } = useAdminAuth();
   const [view, setView] = useState<'day' | 'week'>('day');
   const [cursor, setCursor] = useState(todayTbilisi());
   const [bookings, setBookings] = useState<BookingRow[]>([]);
@@ -47,25 +50,34 @@ export default function AdminCalendarPage() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('bookings')
       .select('*, masters(name), booking_services(services(name_ka, name_ru))')
       .gte('booking_date', range[0])
       .lte('booking_date', range[1])
       .order('booking_date')
       .order('start_time');
+    if (error) {
+      console.error('[load calendar bookings error]:', error);
+    }
     setBookings((data as BookingRow[]) ?? []);
     setLoading(false);
   }, [supabase, range]);
 
   useEffect(() => {
-    load();
-  }, [load]);
+    if (isReady) {
+      load();
+    }
+  }, [isReady, load]);
 
   const setStatus = async (id: string, status: string) => {
     const { error } = await supabase.from('bookings').update({ status }).eq('id', id);
-    if (error) toast.error(t('actions.error'));
-    else load();
+    if (error) {
+      toast.error(error.message || t('actions.error'));
+    } else {
+      toast.success(t('actions.saved'));
+      load();
+    }
   };
 
   const shift = (n: number) => setCursor((c) => addDays(c, view === 'day' ? n : n * 7));

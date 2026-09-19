@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createBrowserSupabase } from '@/lib/supabase/client';
 import { useAdminT } from '@/lib/admin-i18n';
+import { useAdminAuth } from '@/components/admin/auth-sync';
 import { serviceName, type Master, type Service, type ServiceCategory } from '@/lib/types';
 import { SlotPickerBase, type SlotValue } from '@/components/slot-picker';
 import { Card, CardContent } from '@/components/ui/card';
@@ -22,6 +23,7 @@ import { toast } from 'sonner';
 
 export default function AdminNewBookingPage() {
   const { t, lang } = useAdminT();
+  const { isReady } = useAdminAuth();
   const router = useRouter();
   const supabase = useMemo(() => createBrowserSupabase(), []);
 
@@ -37,6 +39,7 @@ export default function AdminNewBookingPage() {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
+    if (!isReady) return;
     Promise.all([
       supabase.from('service_categories').select('*').eq('is_active', true).order('sort_order'),
       supabase.from('services').select('*').eq('is_active', true).order('sort_order'),
@@ -46,7 +49,7 @@ export default function AdminNewBookingPage() {
       setServices(s.data ?? []);
       setMasters(m.data ?? []);
     });
-  }, [supabase]);
+  }, [supabase, isReady]);
 
   const toggle = (id: string) =>
     setSelected((prev) => {

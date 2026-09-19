@@ -1,5 +1,6 @@
 import { AdminLangProvider } from '@/lib/admin-i18n';
 import { AdminNav } from '@/components/admin/nav';
+import { AdminAuthSync } from '@/components/admin/auth-sync';
 import { Toaster } from '@/components/ui/sonner';
 import '../../globals.css';
 
@@ -13,11 +14,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       </head>
       <body>
         <AdminLangProvider>
-          <div className="mx-auto flex min-h-dvh max-w-3xl flex-col">
-            <AdminNav />
-            <main className="flex-1 px-4 pb-24">{children}</main>
-          </div>
-          <Toaster />
+          <AdminAuthSync>
+            <div className="mx-auto flex min-h-dvh max-w-3xl flex-col">
+              <AdminNav />
+              <main className="flex-1 px-4 pb-24">{children}</main>
+            </div>
+            <Toaster />
+          </AdminAuthSync>
         </AdminLangProvider>
       </body>
     </html>

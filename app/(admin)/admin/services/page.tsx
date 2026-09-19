@@ -25,6 +25,8 @@ import {
 } from '@/components/ui/select';
 import { toast } from 'sonner';
 
+import { useAdminAuth } from '@/components/admin/auth-sync';
+
 interface ServiceForm {
   id?: string;
   category_id: string;
@@ -43,6 +45,7 @@ interface CategoryForm {
 
 export default function AdminServicesPage() {
   const { t, lang } = useAdminT();
+  const { isReady } = useAdminAuth();
   const supabase = useMemo(() => createBrowserSupabase(), []);
   const [categories, setCategories] = useState<ServiceCategory[]>([]);
   const [services, setServices] = useState<Service[]>([]);
@@ -60,8 +63,10 @@ export default function AdminServicesPage() {
   }, [supabase]);
 
   useEffect(() => {
-    load();
-  }, [load]);
+    if (isReady) {
+      load();
+    }
+  }, [isReady, load]);
 
   const saveService = async () => {
     if (!serviceForm) return;
@@ -105,13 +110,31 @@ export default function AdminServicesPage() {
 
   const removeService = async (id: string) => {
     if (!confirm(t('services.confirmDeleteService'))) return;
-    await supabase.from('services').delete().eq('id', id);
+    const { error } = await supabase.from('services').delete().eq('id', id);
+    if (error) {
+      if (error.code === '23503') {
+        toast.error('Нельзя удалить услугу с существующими записями. Отключите её переключателем.');
+      } else {
+        toast.error(error.message || t('actions.error'));
+      }
+      return;
+    }
+    toast.success(t('actions.saved'));
     load();
   };
 
   const removeCategory = async (id: string) => {
     if (!confirm(t('services.confirmDeleteCategory'))) return;
-    await supabase.from('service_categories').delete().eq('id', id);
+    const { error } = await supabase.from('service_categories').delete().eq('id', id);
+    if (error) {
+      if (error.code === '23503') {
+        toast.error('Нельзя удалить категорию с привязанными услугами.');
+      } else {
+        toast.error(error.message || t('actions.error'));
+      }
+      return;
+    }
+    toast.success(t('actions.saved'));
     load();
   };
 
@@ -129,6 +152,28 @@ export default function AdminServicesPage() {
     await supabase.from(table).update({ sort_order: b.sort_order }).eq('id', a.id);
     await supabase.from(table).update({ sort_order: a.sort_order }).eq('id', b.id);
     load();
+  };
+
+  const toggleCategory = async (c: ServiceCategory, v: boolean) => {
+    setCategories((prev) => prev.map((item) => (item.id === c.id ? { ...item, is_active: v } : item)));
+    const { error } = await supabase.from('service_categories').update({ is_active: v }).eq('id', c.id);
+    if (error) {
+      setCategories((prev) => prev.map((item) => (item.id === c.id ? { ...item, is_active: c.is_active } : item)));
+      toast.error(error.message || t('actions.error'));
+      return;
+    }
+    toast.success(t('actions.saved'));
+  };
+
+  const toggleService = async (s: Service, v: boolean) => {
+    setServices((prev) => prev.map((item) => (item.id === s.id ? { ...item, is_active: v } : item)));
+    const { error } = await supabase.from('services').update({ is_active: v }).eq('id', s.id);
+    if (error) {
+      setServices((prev) => prev.map((item) => (item.id === s.id ? { ...item, is_active: s.is_active } : item)));
+      toast.error(error.message || t('actions.error'));
+      return;
+    }
+    toast.success(t('actions.saved'));
   };
 
   return (
@@ -155,10 +200,7 @@ export default function AdminServicesPage() {
                 <div className="flex items-center gap-1">
                   <Switch
                     checked={c.is_active}
-                    onCheckedChange={async (v) => {
-                      await supabase.from('service_categories').update({ is_active: v }).eq('id', c.id);
-                      load();
-                    }}
+                    onCheckedChange={(v) => toggleCategory(c, v)}
                   />
                   <Button
                     variant="ghost"
@@ -201,10 +243,7 @@ export default function AdminServicesPage() {
                     </div>
                     <Switch
                       checked={s.is_active}
-                      onCheckedChange={async (v) => {
-                        await supabase.from('services').update({ is_active: v }).eq('id', s.id);
-                        load();
-                      }}
+                      onCheckedChange={(v) => toggleService(s, v)}
                     />
                     <Button
                       variant="ghost"

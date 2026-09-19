@@ -108,8 +108,14 @@ export async function POST(req: NextRequest) {
 
   session = signRes.data?.session ?? null;
 
-  return NextResponse.json(
-    { ok: true, session },
-    { headers: response.headers }
-  );
+  const finalResponse = new NextResponse(JSON.stringify({ ok: true, session }), {
+    status: 200,
+    headers: { 'Content-Type': 'application/json' },
+  });
+
+  for (const cookie of response.cookies.getAll()) {
+    finalResponse.cookies.set(cookie);
+  }
+
+  return finalResponse;
 }

@@ -31,7 +31,8 @@ export async function GET(req: NextRequest) {
       durationMinutes: duration,
     });
     const res = NextResponse.json({ days });
-    res.headers.set('Cache-Control', 'public, max-age=15, stale-while-revalidate=45');
+    res.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+    res.headers.set('Netlify-CDN-Cache-Control', 'no-store');
     return res;
   }
 
@@ -41,6 +42,7 @@ export async function GET(req: NextRequest) {
   }
   const slots = await availableSlots({ supabase, date, masterId: master, durationMinutes: duration });
   const res = NextResponse.json({ slots });
-  res.headers.set('Cache-Control', 'public, max-age=15, stale-while-revalidate=45');
+  res.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+  res.headers.set('Netlify-CDN-Cache-Control', 'no-store');
   return res;
 }

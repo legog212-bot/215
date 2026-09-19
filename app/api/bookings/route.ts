@@ -58,14 +58,11 @@ export async function POST(req: NextRequest) {
   const phone = normalizePhone(String(body.phone ?? ''));
   if (!phone) return NextResponse.json({ error: 'phone' }, { status: 400 });
 
-  // force = admin override (skip conflict check) — requires a logged-in session
+  // force = admin override (skip conflict check) — requires a logged-in admin session
   let force = false;
-  if (body.force === true) {
-    const session = await createSessionClient();
-    const {
-      data: { user },
-    } = await session.auth.getUser();
-    force = Boolean(user);
+  const isManager = await isAdmin(req);
+  if (body.force === true && isManager) {
+    force = true;
   }
 
   const supabase = createServiceClient();
@@ -87,7 +84,7 @@ export async function POST(req: NextRequest) {
   }
 
   const cancelToken = crypto.randomUUID();
-  const source: 'admin' | 'client' = force ? 'admin' : (await isAdmin()) ? 'admin' : 'client';
+  const source: 'admin' | 'client' = isManager ? 'admin' : 'client';
 
   const { data, error } = await supabase.rpc('create_booking', {
     p_master_id: masterId,
@@ -130,7 +127,10 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({ ok: true, orderNumber, cancelToken, whatsappSent });
 }
 
-async function isAdmin(): Promise<boolean> {
+async function isAdmin(req: NextRequest): Promise<boolean> {
+  if (req.cookies.get('admin_session')?.value === 'true') {
+    return true;
+  }
   try {
     const session = await createSessionClient();
     const {

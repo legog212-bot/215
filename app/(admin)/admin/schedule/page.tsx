@@ -17,6 +17,8 @@ import {
 } from '@/components/ui/select';
 import { toast } from 'sonner';
 
+import { useAdminAuth } from '@/components/admin/auth-sync';
+
 interface DayRow {
   is_day_off: boolean;
   open_time: string;
@@ -27,6 +29,7 @@ const emptyRow: DayRow = { is_day_off: false, open_time: '10:00', close_time: '2
 
 export default function AdminSchedulePage() {
   const { t } = useAdminT();
+  const { isReady } = useAdminAuth();
   const supabase = useMemo(() => createBrowserSupabase(), []);
   const [masters, setMasters] = useState<Master[]>([]);
   const [scope, setScope] = useState<string>('salon'); // 'salon' | master id
@@ -57,8 +60,10 @@ export default function AdminSchedulePage() {
   }, [supabase, scope]);
 
   useEffect(() => {
-    load();
-  }, [load]);
+    if (isReady) {
+      load();
+    }
+  }, [isReady, load]);
 
   const save = async () => {
     setBusy(true);
@@ -66,7 +71,12 @@ export default function AdminSchedulePage() {
     // wipe the scope's rows, insert fresh — simpler than upserting null-keyed rows
     let del = supabase.from('working_hours').delete();
     del = masterId ? del.eq('master_id', masterId) : del.is('master_id', null);
-    await del;
+    const { error: delError } = await del;
+    if (delError) {
+      setBusy(false);
+      return toast.error(delError.message || t('actions.error'));
+    }
+
     const inserts = rows.map((r, dow) => ({
       master_id: masterId,
       day_of_week: dow,
@@ -76,7 +86,7 @@ export default function AdminSchedulePage() {
     }));
     const { error } = await supabase.from('working_hours').insert(inserts);
     setBusy(false);
-    if (error) return toast.error(t('actions.error'));
+    if (error) return toast.error(error.message || t('actions.error'));
     toast.success(t('actions.saved'));
   };
 
