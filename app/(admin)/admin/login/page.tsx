@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { useAdminT } from '@/lib/admin-i18n';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -11,7 +10,6 @@ import { Logo } from '@/components/logo';
 
 export default function AdminLoginPage() {
   const { t } = useAdminT();
-  const router = useRouter();
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -42,8 +40,7 @@ export default function AdminLoginPage() {
         setBusy(false);
         return;
       }
-      router.push('/admin/calendar');
-      router.refresh();
+      window.location.href = '/admin/calendar';
     } catch {
       setError('Ошибка сети при входе. Попробуйте ещё раз.');
       setBusy(false);

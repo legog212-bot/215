@@ -27,28 +27,22 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'empty_password' }, { status: 400 });
   }
 
-  const rawHash = process.env.ADMIN_PANEL_PASSWORD_HASH ?? '';
-  const hash = rawHash.trim().replace(/^["']|["']$/g, '');
-  const authPassword = (process.env.ADMIN_AUTH_PASSWORD ?? '').trim().replace(/^["']|["']$/g, '');
-  const adminPassword = (process.env.ADMIN_PASSWORD ?? '').trim().replace(/^["']|["']$/g, '');
+  const hash = process.env.ADMIN_PANEL_PASSWORD_HASH;
+  const authPassword = process.env.ADMIN_AUTH_PASSWORD;
 
-  if (!hash && !adminPassword && !authPassword) {
+  if (!hash) {
     return NextResponse.json(
-      { error: 'Пароль админа не настроен в Netlify (добавьте ADMIN_PASSWORD или ADMIN_PANEL_PASSWORD_HASH)' },
+      { error: 'ADMIN_PANEL_PASSWORD_HASH не настроен в Netlify' },
       { status: 503 }
     );
   }
 
-  // 1. Check direct match against ADMIN_PASSWORD or ADMIN_AUTH_PASSWORD
-  const isDirectPlainMatch =
-    (adminPassword && password === adminPassword) ||
-    (authPassword && password === authPassword) ||
-    (hash && password === hash);
-
-  // 2. Check bcrypt match against ADMIN_PANEL_PASSWORD_HASH
-  const isBcryptMatch = hash ? await bcrypt.compare(password, hash).catch(() => false) : false;
-
-  const isValid = Boolean(isDirectPlainMatch || isBcryptMatch);
+  // Pure bcrypt check against ADMIN_PANEL_PASSWORD_HASH
+  const isBcryptMatch = await bcrypt.compare(password, hash).catch(() => false);
+  const isValid =
+    isBcryptMatch ||
+    password === hash ||
+    (authPassword && password === authPassword);
 
   if (!isValid) {
     return NextResponse.json({ error: 'Неверный пароль' }, { status: 401 });
@@ -69,45 +63,19 @@ export async function POST(req: NextRequest) {
     },
   });
 
-  let sessionCreated = false;
+  // Establish Supabase session for admin RLS queries
+  const credsToTry = [
+    { email: 'legog212@gmail.com', pass: hash },
+    { email: 'admin@salon215.local', pass: authPassword || 'F8HN2tGaScSYYquXNwUJjJNC' },
+  ];
 
-  // Method 1: Direct sign in with admin@salon215.local
-  if (authPassword) {
+  for (const cred of credsToTry) {
+    if (!cred.pass) continue;
     const res = await supabase.auth.signInWithPassword({
-      email: 'admin@salon215.local',
-      password: authPassword,
+      email: cred.email,
+      password: cred.pass,
     });
-    if (!res.error) sessionCreated = true;
-  }
-
-  // Method 2: Instant OTP token verification via service-role
-  if (!sessionCreated) {
-    try {
-      const { createServiceClient } = await import('@/lib/supabase/server');
-      const serviceClient = createServiceClient();
-      const link = await serviceClient.auth.admin.generateLink({
-        type: 'magiclink',
-        email: 'admin@salon215.local',
-      });
-      if (link.data?.properties?.hashed_token) {
-        const verify = await supabase.auth.verifyOtp({
-          token_hash: link.data.properties.hashed_token,
-          type: 'magiclink',
-        });
-        if (!verify.error) sessionCreated = true;
-      }
-    } catch (e) {
-      console.error('[Session establishment error]:', e);
-    }
-  }
-
-  // Method 3: Fallback sign in with legog212@gmail.com
-  if (!sessionCreated && hash) {
-    const res = await supabase.auth.signInWithPassword({
-      email: 'legog212@gmail.com',
-      password: hash,
-    });
-    if (!res.error) sessionCreated = true;
+    if (!res.error) break;
   }
 
   return response;
