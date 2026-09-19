@@ -27,22 +27,28 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'empty_password' }, { status: 400 });
   }
 
-  const hash = process.env.ADMIN_PANEL_PASSWORD_HASH;
-  const authPassword = process.env.ADMIN_AUTH_PASSWORD;
+  const rawHash = process.env.ADMIN_PANEL_PASSWORD_HASH ?? '';
+  const hash = rawHash.trim().replace(/^["']|["']$/g, '');
+  const authPassword = (process.env.ADMIN_AUTH_PASSWORD ?? '').trim().replace(/^["']|["']$/g, '');
+  const adminPassword = (process.env.ADMIN_PASSWORD ?? '').trim().replace(/^["']|["']$/g, '');
 
-  if (!hash) {
+  if (!hash && !adminPassword && !authPassword) {
     return NextResponse.json(
-      { error: 'ADMIN_PANEL_PASSWORD_HASH не настроен в Netlify' },
+      { error: 'Пароль админа не настроен в Netlify (добавьте ADMIN_PASSWORD или ADMIN_PANEL_PASSWORD_HASH)' },
       { status: 503 }
     );
   }
 
-  // Pure bcrypt check against ADMIN_PANEL_PASSWORD_HASH
-  const isBcryptMatch = await bcrypt.compare(password, hash).catch(() => false);
-  const isValid =
-    isBcryptMatch ||
-    password === hash ||
-    (authPassword && password === authPassword);
+  // 1. Check direct match against ADMIN_PASSWORD or ADMIN_AUTH_PASSWORD
+  const isDirectPlainMatch =
+    (adminPassword && password === adminPassword) ||
+    (authPassword && password === authPassword) ||
+    (hash && password === hash);
+
+  // 2. Check bcrypt match against ADMIN_PANEL_PASSWORD_HASH
+  const isBcryptMatch = hash ? await bcrypt.compare(password, hash).catch(() => false) : false;
+
+  const isValid = Boolean(isDirectPlainMatch || isBcryptMatch);
 
   if (!isValid) {
     return NextResponse.json({ error: 'Неверный пароль' }, { status: 401 });
