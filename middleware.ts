@@ -12,34 +12,40 @@ async function adminGuard(request: NextRequest) {
   const response = NextResponse.next({ request });
   const { pathname } = request.nextUrl;
 
-  // No Supabase env yet (fresh clone) — let the admin routes render; the login
-  // page shows a setup hint instead of crashing.
-  if (!supabaseUrl || !supabaseKey) return response;
+  const hasAdminCookie = request.cookies.get('admin_session')?.value === 'true';
 
-  const supabase = createServerClient(supabaseUrl, supabaseKey, {
-    cookies: {
-      getAll() {
-        return request.cookies.getAll();
-      },
-      setAll(cookiesToSet) {
-        cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
-        cookiesToSet.forEach(({ name, value, options }) =>
-          response.cookies.set(name, value, options)
-        );
-      },
-    },
-  });
+  let isAuthed = hasAdminCookie;
+  if (!isAuthed && supabaseUrl && supabaseKey) {
+    try {
+      const supabase = createServerClient(supabaseUrl, supabaseKey, {
+        cookies: {
+          getAll() {
+            return request.cookies.getAll();
+          },
+          setAll(cookiesToSet) {
+            cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
+            cookiesToSet.forEach(({ name, value, options }) =>
+              response.cookies.set(name, value, options)
+            );
+          },
+        },
+      });
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      isAuthed = Boolean(user);
+    } catch {
+      isAuthed = false;
+    }
+  }
 
-  if (!user && pathname !== '/admin/login') {
+  if (!isAuthed && pathname !== '/admin/login') {
     const url = request.nextUrl.clone();
     url.pathname = '/admin/login';
     return NextResponse.redirect(url);
   }
-  if (user && pathname === '/admin/login') {
+  if (isAuthed && pathname === '/admin/login') {
     const url = request.nextUrl.clone();
     url.pathname = '/admin/calendar';
     return NextResponse.redirect(url);

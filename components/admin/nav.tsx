@@ -1,6 +1,6 @@
 'use client';
 
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import {
   CalendarDays,
@@ -27,16 +27,15 @@ const ITEMS = [
 
 export function AdminNav() {
   const pathname = usePathname();
-  const router = useRouter();
   const { t, lang, setLang } = useAdminT();
 
   if (pathname === '/admin/login') return null;
 
   const logout = async () => {
     const supabase = createBrowserSupabase();
-    await supabase.auth.signOut();
-    router.push('/admin/login');
-    router.refresh();
+    await supabase.auth.signOut().catch(() => {});
+    document.cookie = 'admin_session=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+    window.location.href = '/admin/login';
   };
 
   return (
