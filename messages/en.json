@@ -1,0 +1,83 @@
+{
+  "common": {
+    "brand": "№215",
+    "brandFull": "Beauty Salon №215",
+    "tagline": "Care • Radiance • You",
+    "bookNow": "Book now",
+    "back": "Back",
+    "next": "Next",
+    "loading": "Loading…",
+    "minutes": "{count} min",
+    "priceFrom": "from"
+  },
+  "home": {
+    "title": "Beauty Salon №215",
+    "subtitle": "Book online — pick a service, date and time",
+    "servicesTitle": "Services & prices",
+    "bookCta": "Book online"
+  },
+  "booking": {
+    "title": "Online booking",
+    "stepServices": "Services",
+    "stepMaster": "Specialist",
+    "stepDate": "Date",
+    "stepTime": "Time",
+    "stepDetails": "Contacts",
+    "chooseServices": "Choose one or more services",
+    "chooseMaster": "Choose a specialist",
+    "anyMaster": "Any specialist",
+    "chooseDate": "Choose a date",
+    "chooseTime": "Choose a time",
+    "noSlots": "No free slots for this day",
+    "dayOff": "Day off",
+    "firstName": "First name",
+    "lastName": "Last name",
+    "phone": "WhatsApp number",
+    "phoneHint": "+995 5XX XX XX XX",
+    "comment": "Comment",
+    "commentPlaceholder": "optional",
+    "confirm": "Confirm booking",
+    "submitting": "Sending…",
+    "totalDuration": "Duration",
+    "totalPrice": "Price",
+    "priceVaries": "exact price is set on site",
+    "selectServiceError": "Select at least one service",
+    "selectTimeError": "Select a date and time",
+    "fillFieldsError": "Fill in name, surname and phone",
+    "phoneInvalid": "Enter a valid phone number",
+    "slotTaken": "This slot was just taken — pick another",
+    "genericError": "Something went wrong. Please try again."
+  },
+  "success": {
+    "title": "Booking confirmed!",
+    "orderNumber": "Booking number",
+    "whatsappNote": "Confirmation sent to WhatsApp",
+    "whatsappFailed": "WhatsApp notification was not delivered — save the link below",
+    "manageLink": "Change / cancel booking",
+    "date": "Date",
+    "time": "Time",
+    "master": "Specialist",
+    "services": "Services",
+    "home": "Back to home"
+  },
+  "manage": {
+    "title": "Manage booking",
+    "notFound": "Booking not found or the link is invalid",
+    "status": "Status",
+    "cancel": "Cancel booking",
+    "reschedule": "Change time",
+    "confirmCancel": "Are you sure you want to cancel the booking?",
+    "yesCancel": "Yes, cancel it",
+    "keepIt": "Keep it",
+    "pickNewTime": "Pick a new date and time",
+    "saveNewTime": "Save",
+    "cancelled": "Booking cancelled",
+    "updated": "Time updated",
+    "statuses": {
+      "confirmed": "Confirmed",
+      "cancelled": "Cancelled",
+      "completed": "Completed",
+      "no_show": "No-show"
+    }
+  }
+}

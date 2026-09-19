@@ -1,0 +1,83 @@
+{
+  "common": {
+    "brand": "№215",
+    "brandFull": "სილამაზის სალონი №215",
+    "tagline": "Care • Radiance • You",
+    "bookNow": "დაჯავშნა",
+    "back": "უკან",
+    "next": "შემდეგი",
+    "loading": "იტვირთება…",
+    "minutes": "{count} წთ",
+    "priceFrom": "დან"
+  },
+  "home": {
+    "title": "სილამაზის სალონი №215",
+    "subtitle": "ონლაინ ჯავშანი — აირჩიეთ სერვისი, თარიღი და დრო",
+    "servicesTitle": "სერვისები და ფასები",
+    "bookCta": "დაჯავშნე ონლაინ"
+  },
+  "booking": {
+    "title": "ონლაინ ჯავშანი",
+    "stepServices": "სერვისები",
+    "stepMaster": "ოსტატი",
+    "stepDate": "თარიღი",
+    "stepTime": "დრო",
+    "stepDetails": "კონტაქტი",
+    "chooseServices": "აირჩიეთ ერთი ან რამდენიმე სერვისი",
+    "chooseMaster": "აირჩიეთ ოსტატი",
+    "anyMaster": "ნებისმიერი ოსტატი",
+    "chooseDate": "აირჩიეთ თარიღი",
+    "chooseTime": "აირჩიეთ დრო",
+    "noSlots": "ამ დღისთვის თავისუფალი დრო აღარ არის",
+    "dayOff": "დასვენების დღე",
+    "firstName": "სახელი",
+    "lastName": "გვარი",
+    "phone": "WhatsApp-ის ნომერი",
+    "phoneHint": "+995 5XX XX XX XX",
+    "comment": "კომენტარი",
+    "commentPlaceholder": "არასავალდებულო",
+    "confirm": "ვადასტურებ ჯავშანს",
+    "submitting": "იგზავნება…",
+    "totalDuration": "ხანგრძლივობა",
+    "totalPrice": "ფასი",
+    "priceVaries": "ზუსტი ფასი დადგინდება ადგილზე",
+    "selectServiceError": "აირჩიეთ მინიმუმ ერთი სერვისი",
+    "selectTimeError": "აირჩიეთ თარიღი და დრო",
+    "fillFieldsError": "შეავსეთ სახელი, გვარი და ტელეფონი",
+    "phoneInvalid": "შეიყვანეთ სწორი ტელეფონის ნომერი",
+    "slotTaken": "ეს დრო ახლახან დაკავებულია — აირჩიეთ სხვა",
+    "genericError": "რაღაც შეცდომა მოხდა. სცადეთ თავიდან."
+  },
+  "success": {
+    "title": "ჯავშანი დადასტურებულია!",
+    "orderNumber": "ჯავშნის ნომერი",
+    "whatsappNote": "დასტური გამოგზავნილია WhatsApp-ში",
+    "whatsappFailed": "WhatsApp-შეტყობინება ვერ გაიგზავნა — შეინახეთ ბმული ქვემოთ",
+    "manageLink": "ჯავშნის ცვლილება / გაუქმება",
+    "date": "თარიღი",
+    "time": "დრო",
+    "master": "ოსტატი",
+    "services": "სერვისები",
+    "home": "მთავარ გვერდზე"
+  },
+  "manage": {
+    "title": "ჯავშნის მართვა",
+    "notFound": "ჯავშანი ვერ მოიძებნა ან ბმული არასწორია",
+    "status": "სტატუსი",
+    "cancel": "ჯავშნის გაუქმება",
+    "reschedule": "დროის შეცვლა",
+    "confirmCancel": "დარწმუნებული ხართ, რომ გსურთ ჯავშნის გაუქმება?",
+    "yesCancel": "დიახ, გავუქმებ",
+    "keepIt": "ტოვებ",
+    "pickNewTime": "აირჩიეთ ახალი თარიღი და დრო",
+    "saveNewTime": "შენახვა",
+    "cancelled": "ჯავშანი გაუქმებულია",
+    "updated": "დრო შეიცვალა",
+    "statuses": {
+      "confirmed": "დადასტურებული",
+      "cancelled": "გაუქმებული",
+      "completed": "დასრულებული",
+      "no_show": "არ მოვიდა"
+    }
+  }
+}

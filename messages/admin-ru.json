@@ -1,0 +1,113 @@
+{
+  "nav": {
+    "calendar": "Календарь",
+    "newBooking": "Новая запись",
+    "services": "Услуги",
+    "schedule": "График",
+    "masters": "Мастера",
+    "clients": "Клиенты",
+    "logout": "Выйти"
+  },
+  "login": {
+    "title": "Вход в админ-панель",
+    "email": "Email",
+    "password": "Пароль",
+    "signIn": "Войти",
+    "error": "Неверный email или пароль",
+    "noEnv": "Supabase не настроен — заполните .env.local"
+  },
+  "calendar": {
+    "today": "Сегодня",
+    "day": "День",
+    "week": "Неделя",
+    "noBookings": "Нет записей",
+    "newBooking": "+ Запись",
+    "waSent": "WA ✓",
+    "waFailed": "WA ✗",
+    "manual": "вручную"
+  },
+  "statuses": {
+    "confirmed": "Подтверждена",
+    "cancelled": "Отменена",
+    "completed": "Завершена",
+    "no_show": "Не пришёл"
+  },
+  "actions": {
+    "complete": "Завершить",
+    "noShow": "Не пришёл",
+    "cancel": "Отменить",
+    "save": "Сохранить",
+    "close": "Закрыть",
+    "delete": "Удалить",
+    "edit": "Изменить",
+    "add": "Добавить",
+    "loading": "Загрузка…",
+    "saved": "Сохранено",
+    "error": "Ошибка"
+  },
+  "services": {
+    "categories": "Категории",
+    "addCategory": "Добавить категорию",
+    "addService": "Добавить услугу",
+    "nameKa": "Название (KA)",
+    "nameRu": "Название (RU)",
+    "category": "Категория",
+    "priceFrom": "Цена от",
+    "priceTo": "Цена до",
+    "priceToHint": "пусто = фиксированная цена",
+    "duration": "Длительность (мин)",
+    "active": "Активна",
+    "confirmDeleteService": "Удалить услугу? История записей пострадает — лучше выключить.",
+    "confirmDeleteCategory": "Удалить категорию вместе со всеми услугами?",
+    "empty": "Услуг пока нет"
+  },
+  "schedule": {
+    "salonDefault": "Общий график салона",
+    "master": "Мастер",
+    "dayOff": "Выходной",
+    "open": "С",
+    "close": "До",
+    "days": {
+      "0": "Воскресенье",
+      "1": "Понедельник",
+      "2": "Вторник",
+      "3": "Среда",
+      "4": "Четверг",
+      "5": "Пятница",
+      "6": "Суббота"
+    }
+  },
+  "masters": {
+    "add": "Добавить мастера",
+    "name": "Имя",
+    "active": "Активен",
+    "empty": "Мастеров пока нет"
+  },
+  "clients": {
+    "phone": "Телефон",
+    "name": "Имя",
+    "visits": "Записей",
+    "lastVisit": "Последняя запись",
+    "history": "История",
+    "empty": "Клиентов пока нет"
+  },
+  "bookingForm": {
+    "title": "Новая запись",
+    "clientName": "Имя",
+    "clientSurname": "Фамилия",
+    "phone": "Телефон (WhatsApp)",
+    "services": "Услуги",
+    "master": "Мастер",
+    "anyMaster": "Любой",
+    "date": "Дата",
+    "time": "Время",
+    "comment": "Комментарий",
+    "create": "Создать",
+    "conflict": "Это время уже занято",
+    "force": "Создать всё равно",
+    "created": "Запись создана",
+    "selectSlot": "Выберите свободное время",
+    "noSlots": "На этот день свободного времени нет",
+    "fillFields": "Заполните все поля"
+  }
+}

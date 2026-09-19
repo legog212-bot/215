@@ -1,0 +1,83 @@
+{
+  "common": {
+    "brand": "№215",
+    "brandFull": "Салон красоты №215",
+    "tagline": "Care • Radiance • You",
+    "bookNow": "Записаться",
+    "back": "Назад",
+    "next": "Далее",
+    "loading": "Загрузка…",
+    "minutes": "{count} мин",
+    "priceFrom": "от"
+  },
+  "home": {
+    "title": "Салон красоты №215",
+    "subtitle": "Онлайн-запись — выберите услугу, дату и время",
+    "servicesTitle": "Услуги и цены",
+    "bookCta": "Записаться онлайн"
+  },
+  "booking": {
+    "title": "Онлайн-запись",
+    "stepServices": "Услуги",
+    "stepMaster": "Мастер",
+    "stepDate": "Дата",
+    "stepTime": "Время",
+    "stepDetails": "Контакты",
+    "chooseServices": "Выберите одну или несколько услуг",
+    "chooseMaster": "Выберите мастера",
+    "anyMaster": "Любой мастер",
+    "chooseDate": "Выберите дату",
+    "chooseTime": "Выберите время",
+    "noSlots": "На этот день свободного времени нет",
+    "dayOff": "Выходной",
+    "firstName": "Имя",
+    "lastName": "Фамилия",
+    "phone": "Номер WhatsApp",
+    "phoneHint": "+995 5XX XX XX XX",
+    "comment": "Комментарий",
+    "commentPlaceholder": "необязательно",
+    "confirm": "Подтвердить запись",
+    "submitting": "Отправка…",
+    "totalDuration": "Длительность",
+    "totalPrice": "Цена",
+    "priceVaries": "точная цена определяется на месте",
+    "selectServiceError": "Выберите хотя бы одну услугу",
+    "selectTimeError": "Выберите дату и время",
+    "fillFieldsError": "Заполните имя, фамилию и телефон",
+    "phoneInvalid": "Введите корректный номер телефона",
+    "slotTaken": "Это время только что заняли — выберите другое",
+    "genericError": "Что-то пошло не так. Попробуйте ещё раз."
+  },
+  "success": {
+    "title": "Запись подтверждена!",
+    "orderNumber": "Номер записи",
+    "whatsappNote": "Подтверждение отправлено в WhatsApp",
+    "whatsappFailed": "WhatsApp-уведомление не доставлено — сохраните ссылку ниже",
+    "manageLink": "Изменить / отменить запись",
+    "date": "Дата",
+    "time": "Время",
+    "master": "Мастер",
+    "services": "Услуги",
+    "home": "На главную"
+  },
+  "manage": {
+    "title": "Управление записью",
+    "notFound": "Запись не найдена или ссылка неверная",
+    "status": "Статус",
+    "cancel": "Отменить запись",
+    "reschedule": "Изменить время",
+    "confirmCancel": "Вы уверены, что хотите отменить запись?",
+    "yesCancel": "Да, отменить",
+    "keepIt": "Оставить",
+    "pickNewTime": "Выберите новую дату и время",
+    "saveNewTime": "Сохранить",
+    "cancelled": "Запись отменена",
+    "updated": "Время изменено",
+    "statuses": {
+      "confirmed": "Подтверждена",
+      "cancelled": "Отменена",
+      "completed": "Завершена",
+      "no_show": "Не пришёл"
+    }
+  }
+}
