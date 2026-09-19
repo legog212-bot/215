@@ -80,7 +80,7 @@ export default function AdminServicesPage() {
           .from('services')
           .insert({ ...payload, sort_order: services.length });
     setBusy(false);
-    if (error) return toast.error(t('actions.error'));
+    if (error) return toast.error(error.message || t('actions.error'));
     setServiceForm(null);
     load();
   };
@@ -98,7 +98,7 @@ export default function AdminServicesPage() {
           .from('service_categories')
           .insert({ ...payload, sort_order: categories.length });
     setBusy(false);
-    if (error) return toast.error(t('actions.error'));
+    if (error) return toast.error(error.message || t('actions.error'));
     setCategoryForm(null);
     load();
   };

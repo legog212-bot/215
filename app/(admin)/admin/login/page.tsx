@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Logo } from '@/components/logo';
+import { createBrowserSupabase } from '@/lib/supabase/client';
 
 export default function AdminLoginPage() {
   const { t } = useAdminT();
@@ -39,6 +40,14 @@ export default function AdminLoginPage() {
         }
         setBusy(false);
         return;
+      }
+      if (data.session) {
+        try {
+          const supabase = createBrowserSupabase();
+          await supabase.auth.setSession(data.session);
+        } catch (e) {
+          console.error('[setSession error]:', e);
+        }
       }
       window.location.href = '/admin/calendar';
     } catch {

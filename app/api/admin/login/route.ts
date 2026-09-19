@@ -16,7 +16,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'rate_limited' }, { status: 429 });
   }
 
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const rawUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
+  const url = rawUrl.replace('mypbacnmusckjgdjupdt', 'mypbacnmusckjgdzupdt');
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   if (!url || !anonKey) {
     return NextResponse.json({ error: 'not configured: missing Supabase URL or Anon Key' }, { status: 503 });
@@ -81,7 +82,8 @@ export async function POST(req: NextRequest) {
 
   // Ensure Supabase user admin@salon215.local is signed in
   const targetEmail = 'admin@salon215.local';
-  const signRes = await supabase.auth.signInWithPassword({
+  let session = null;
+  let signRes = await supabase.auth.signInWithPassword({
     email: targetEmail,
     password: authPassword,
   });
@@ -95,7 +97,7 @@ export async function POST(req: NextRequest) {
         password: authPassword,
         email_confirm: true,
       });
-      await supabase.auth.signInWithPassword({
+      signRes = await supabase.auth.signInWithPassword({
         email: targetEmail,
         password: authPassword,
       });
@@ -104,5 +106,10 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  return response;
+  session = signRes.data?.session ?? null;
+
+  return NextResponse.json(
+    { ok: true, session },
+    { headers: response.headers }
+  );
 }
