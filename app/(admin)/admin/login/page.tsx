@@ -33,7 +33,7 @@ export default function AdminLoginPage() {
         } else if (res.status === 429) {
           setError('Слишком много попыток входа. Подождите 1 минуту.');
         } else if (data.error === 'Invalid login credentials' || res.status === 401) {
-          setError('Неверный пароль. Убедитесь, что ввели пароль пользователя admin@salon215.local из Supabase.');
+          setError('Неверный пароль.');
         } else if (data.error === 'Email not confirmed') {
           setError('Email не подтверждён в Supabase. Отметьте "Auto Confirm User" в Supabase Dashboard.');
         } else {

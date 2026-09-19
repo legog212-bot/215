@@ -8,7 +8,6 @@ export const dynamic = 'force-dynamic';
 // The manager only types a panel password. If it matches the bcrypt hash in
 // env, the server signs into Supabase as the internal admin user — admin pages
 // keep working through normal RLS-authenticated requests.
-const ADMIN_AUTH_EMAIL = 'admin@salon215.local';
 
 export async function POST(req: NextRequest) {
   const ip =
@@ -45,30 +44,49 @@ export async function POST(req: NextRequest) {
     },
   });
 
-  // Attempt 1: Direct sign-in using the entered password as admin@salon215.local password
-  let authResult = await supabase.auth.signInWithPassword({
-    email: ADMIN_AUTH_EMAIL,
-    password: password,
-  });
+  // Check if entered password matches the admin bcrypt hash
+  const isHashMatch = hash ? await bcrypt.compare(password, hash).catch(() => false) : false;
 
-  // Attempt 2: If direct failed, check if entered password matches ADMIN_AUTH_PASSWORD or bcrypt hash
-  if (authResult.error && authPassword) {
-    let matches = password === authPassword;
-    if (!matches && hash) {
-      matches = await bcrypt.compare(password, hash).catch(() => false);
-    }
-    if (matches) {
-      authResult = await supabase.auth.signInWithPassword({
-        email: ADMIN_AUTH_EMAIL,
-        password: authPassword,
-      });
-    }
+  // Potential credential pairs to sign into Supabase:
+  const credentialsToTry: { email: string; pass: string }[] = [];
+
+  // If password matched the bcrypt hash:
+  if (isHashMatch) {
+    if (authPassword) credentialsToTry.push({ email: 'admin@salon215.local', pass: authPassword });
+    if (hash) credentialsToTry.push({ email: 'legog212@gmail.com', pass: hash });
   }
 
-  if (authResult.error) {
-    console.error('[Admin Login Error]:', authResult.error.message);
+  // If user entered authPassword or hash directly:
+  if (authPassword && password === authPassword) {
+    credentialsToTry.push({ email: 'admin@salon215.local', pass: authPassword });
+  }
+  if (hash && password === hash) {
+    credentialsToTry.push({ email: 'legog212@gmail.com', pass: hash });
+  }
+
+  // Direct login attempts with entered password:
+  credentialsToTry.push({ email: 'admin@salon215.local', pass: password });
+  credentialsToTry.push({ email: 'legog212@gmail.com', pass: password });
+
+  let lastError: { message?: string } | null = null;
+  let signedIn = false;
+
+  for (const cred of credentialsToTry) {
+    const { error } = await supabase.auth.signInWithPassword({
+      email: cred.email,
+      password: cred.pass,
+    });
+    if (!error) {
+      signedIn = true;
+      break;
+    }
+    lastError = error;
+  }
+
+  if (!signedIn) {
+    console.error('[Admin Login Error]:', lastError?.message);
     return NextResponse.json(
-      { error: authResult.error.message || 'invalid_credentials' },
+      { error: lastError?.message || 'invalid_credentials' },
       { status: 401 }
     );
   }
