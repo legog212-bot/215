@@ -38,8 +38,8 @@ export default function AdminLoginPage() {
     <div className="flex min-h-dvh items-center justify-center px-4">
       <Card className="w-full max-w-sm">
         <CardContent className="space-y-5 p-6">
-          <div className="flex flex-col items-center gap-2">
-            <Logo size={56} />
+          <div className="flex flex-col items-center gap-3">
+            <Logo size={72} />
             <h1 className="text-lg font-semibold">{t('login.title')}</h1>
           </div>
           <form onSubmit={signIn} className="space-y-4">

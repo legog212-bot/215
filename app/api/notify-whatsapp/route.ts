@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServiceClient, supabaseConfigured } from '@/lib/supabase/server';
+import { createSessionClient } from '@/lib/supabase/session';
 import { sendWhatsAppTemplate, whatsappConfigured } from '@/lib/whatsapp';
 import { serviceName } from '@/lib/types';
 
@@ -7,7 +8,7 @@ export const dynamic = 'force-dynamic';
 
 /**
  * Manual / retry endpoint: re-send the WhatsApp confirmation for a booking.
- * POST { bookingId } — intended for admin use (session-checked).
+ * POST { bookingId } — admin only (session-checked).
  */
 export async function POST(req: NextRequest) {
   if (!supabaseConfigured()) {
@@ -15,6 +16,13 @@ export async function POST(req: NextRequest) {
   }
   if (!whatsappConfigured()) {
     return NextResponse.json({ sent: false, reason: 'whatsapp not configured' });
+  }
+
+  // admin-only: verify the caller has an authenticated session
+  const session = await createSessionClient();
+  const { data: { user } } = await session.auth.getUser();
+  if (!user) {
+    return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   }
 
   const { bookingId, locale = 'ka' } = await req.json();

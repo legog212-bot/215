@@ -5,7 +5,12 @@ import '../../globals.css';
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="ka">
+    <html lang="ka" suppressHydrationWarning>
+      <head>
+        <title>№215 Admin</title>
+        {/* sync html lang from localStorage before paint to avoid flash */}
+        <script dangerouslySetInnerHTML={{ __html: `try{var l=localStorage.getItem('admin-lang');if(l)document.documentElement.lang=l}catch(e){}` }} />
+      </head>
       <body>
         <AdminLangProvider>
           <div className="mx-auto flex min-h-dvh max-w-3xl flex-col">
@@ -18,3 +23,4 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     </html>
   );
 }
+

@@ -87,7 +87,7 @@ export async function POST(req: NextRequest) {
   }
 
   const cancelToken = crypto.randomUUID();
-  const source = force || (await isAdmin()) ? 'admin' : 'client';
+  const source: 'admin' | 'client' = force ? 'admin' : (await isAdmin()) ? 'admin' : 'client';
 
   const { data, error } = await supabase.rpc('create_booking', {
     p_master_id: masterId,

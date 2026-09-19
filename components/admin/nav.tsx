@@ -43,7 +43,7 @@ export function AdminNav() {
     <>
       <header className="flex items-center justify-between px-4 py-3">
         <div className="flex items-center gap-2">
-          <Logo size={32} />
+          <Logo size={40} />
           <span className="font-bold text-brand-ink">№215</span>
           <span className="rounded-md bg-secondary px-1.5 py-0.5 text-[10px] font-semibold uppercase text-brand-ink">
             admin
