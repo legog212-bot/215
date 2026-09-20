@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServiceClient, supabaseConfigured } from '@/lib/supabase/server';
 import { createSessionClient } from '@/lib/supabase/session';
+import { ADMIN_SESSION_COOKIE, verifyAdminSession } from '@/lib/admin-session';
 import { endTime, pickMasterForSlot, servicesDuration } from '@/lib/booking';
 import { normalizePhone } from '@/lib/phone';
 import { rateLimitOk } from '@/lib/rate-limit';
@@ -128,7 +129,7 @@ export async function POST(req: NextRequest) {
 }
 
 async function isAdmin(req: NextRequest): Promise<boolean> {
-  if (req.cookies.get('admin_session')?.value === 'true') {
+  if (await verifyAdminSession(req.cookies.get(ADMIN_SESSION_COOKIE)?.value)) {
     return true;
   }
   try {
@@ -164,7 +165,7 @@ async function notifyClient(
     const supabase = createServiceClient();
     const { data: services } = await supabase
       .from('services')
-      .select('name_ka, name_ru')
+      .select('name_ka, name_ru, name_en')
       .in('id', p.serviceIds);
     const names = (services ?? []).map((s) => serviceName(s, p.locale)).join(', ');
     const manageUrl = `${siteUrl(req)}/${p.locale}/manage/${p.cancelToken}`;

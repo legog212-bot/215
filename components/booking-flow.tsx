@@ -154,16 +154,27 @@ export function BookingFlow({ categories, services, masters }: Props) {
                   {catServices.map((s) => (
                     <Card
                       key={s.id}
-                      className={cn(
-                        'cursor-pointer transition-colors',
-                        selected.has(s.id) && 'border-primary bg-secondary/50'
-                      )}
+                      role="button"
+                      tabIndex={0}
                       onClick={() => toggle(s.id)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          toggle(s.id);
+                        }
+                      }}
+                      className={cn(
+                        'cursor-pointer rounded-2xl border-black/5 transition-all active:scale-[0.99]',
+                        selected.has(s.id)
+                          ? 'border-brand-gold/50 bg-brand-gold/5 shadow-md'
+                          : 'hover:border-brand-gold/30 hover:shadow-md'
+                      )}
                     >
                       <CardContent className="flex items-center gap-3 p-4">
-                        <Checkbox checked={selected.has(s.id)} onCheckedChange={() => toggle(s.id)} />
+                        {/* checkbox is visual only — the whole card toggles */}
+                        <Checkbox checked={selected.has(s.id)} className="pointer-events-none" tabIndex={-1} />
                         <div className="min-w-0 flex-1">
-                          <p className="font-medium">{serviceName(s, locale)}</p>
+                          <p className="font-medium text-brand-ink">{serviceName(s, locale)}</p>
                           <p className="text-sm text-muted-foreground">
                             {tc('minutes', { count: s.duration_minutes })}
                           </p>

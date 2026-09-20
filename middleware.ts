@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import createIntlMiddleware from 'next-intl/middleware';
 import { routing } from './i18n/routing';
+import { ADMIN_SESSION_COOKIE, verifyAdminSession } from '@/lib/admin-session';
 
 const intlMiddleware = createIntlMiddleware(routing);
 
@@ -12,9 +13,7 @@ async function adminGuard(request: NextRequest) {
   const response = NextResponse.next({ request });
   const { pathname } = request.nextUrl;
 
-  const hasAdminCookie = request.cookies.get('admin_session')?.value === 'true';
-
-  let isAuthed = hasAdminCookie;
+  let isAuthed = await verifyAdminSession(request.cookies.get(ADMIN_SESSION_COOKIE)?.value);
   if (!isAuthed && supabaseUrl && supabaseKey) {
     try {
       const supabase = createServerClient(supabaseUrl, supabaseKey, {

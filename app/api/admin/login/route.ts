@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import bcrypt from 'bcryptjs';
 import { rateLimitOk } from '@/lib/rate-limit';
+import {
+  ADMIN_SESSION_COOKIE,
+  ADMIN_SESSION_MAX_AGE,
+  createAdminSessionToken,
+} from '@/lib/admin-session';
 
 export const dynamic = 'force-dynamic';
 
@@ -30,10 +35,9 @@ export async function POST(req: NextRequest) {
 
   const rawHash = process.env.ADMIN_PANEL_PASSWORD_HASH ?? '';
   const hash = rawHash.trim().replace(/^["']|["']$/g, '');
-  const adminPassword = (process.env.ADMIN_PASSWORD ?? '').trim().replace(/^["']|["']$/g, '');
-  const authPassword = (process.env.ADMIN_AUTH_PASSWORD ?? 'F8HN2tGaScSYYquXNwUJjJNC').trim().replace(/^["']|["']$/g, '');
+  const authPassword = (process.env.ADMIN_AUTH_PASSWORD ?? '').trim().replace(/^["']|["']$/g, '');
 
-  if (!hash && !adminPassword) {
+  if (!hash) {
     return NextResponse.json(
       { error: 'Пароль админа не настроен в Netlify' },
       { status: 503 }
@@ -41,12 +45,7 @@ export async function POST(req: NextRequest) {
   }
 
   // Pure bcrypt check against ADMIN_PANEL_PASSWORD_HASH
-  const isBcryptMatch = hash ? await bcrypt.compare(password, hash).catch(() => false) : false;
-  const isValid =
-    isBcryptMatch ||
-    (adminPassword && password === adminPassword) ||
-    (hash && password === hash) ||
-    password === authPassword;
+  const isValid = await bcrypt.compare(password, hash).catch(() => false);
 
   if (!isValid) {
     return NextResponse.json({ error: 'Неверный пароль' }, { status: 401 });
@@ -55,12 +54,13 @@ export async function POST(req: NextRequest) {
   // Password verified! Now establish the authenticated Supabase session for admin RLS queries
   const response = NextResponse.json({ ok: true });
 
-  // Set explicit admin_session cookie for instant middleware verification without network hops
-  response.cookies.set('admin_session', 'true', {
+  // Signed, httpOnly admin cookie — can't be forged by setting a value manually
+  response.cookies.set(ADMIN_SESSION_COOKIE, await createAdminSessionToken(), {
     path: '/',
     sameSite: 'lax',
-    httpOnly: false,
-    maxAge: 60 * 60 * 24 * 7, // 7 days
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    maxAge: ADMIN_SESSION_MAX_AGE,
   });
 
   const supabase = createServerClient(url, anonKey, {
@@ -83,12 +83,11 @@ export async function POST(req: NextRequest) {
   // Ensure Supabase user admin@salon215.local is signed in
   const targetEmail = 'admin@salon215.local';
   let session = null;
-  let signRes = await supabase.auth.signInWithPassword({
-    email: targetEmail,
-    password: authPassword,
-  });
+  let signRes = authPassword
+    ? await supabase.auth.signInWithPassword({ email: targetEmail, password: authPassword })
+    : { data: { session: null }, error: new Error('ADMIN_AUTH_PASSWORD not set') };
 
-  if (signRes.error) {
+  if (signRes.error && authPassword) {
     try {
       const { createServiceClient } = await import('@/lib/supabase/server');
       const serviceClient = createServiceClient();

@@ -24,7 +24,9 @@
     "newBooking": "+ ჯავშანი",
     "waSent": "WA ✓",
     "waFailed": "WA ✗",
-    "manual": "ხელით"
+    "manual": "ხელით",
+    "allMasters": "ყველა ოსტატი",
+    "allStatuses": "ყველა სტატუსი"
   },
   "statuses": {
     "confirmed": "დადასტურებული",
@@ -51,6 +53,7 @@
     "addService": "სერვისის დამატება",
     "nameKa": "სახელი (KA)",
     "nameRu": "სახელი (RU)",
+    "nameEn": "სახელი (EN)",
     "category": "კატეგორია",
     "priceFrom": "ფასი-დან",
     "priceTo": "ფასი-მდე",

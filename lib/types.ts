@@ -2,6 +2,7 @@ export interface ServiceCategory {
   id: string;
   name_ka: string;
   name_ru: string;
+  name_en?: string | null;
   sort_order: number;
   is_active: boolean;
 }
@@ -11,6 +12,7 @@ export interface Service {
   category_id: string;
   name_ka: string;
   name_ru: string;
+  name_en?: string | null;
   price_from: number;
   price_to: number | null;
   duration_minutes: number;
@@ -70,14 +72,19 @@ export interface BookingDetails {
   created_at: string;
   services: Pick<
     Service,
-    'id' | 'name_ka' | 'name_ru' | 'price_from' | 'price_to' | 'duration_minutes'
+    'id' | 'name_ka' | 'name_ru' | 'name_en' | 'price_from' | 'price_to' | 'duration_minutes'
   >[];
 }
 
 export type Locale = 'ka' | 'ru' | 'en';
 
-export function serviceName(s: Pick<Service, 'name_ka' | 'name_ru'>, locale: string) {
-  return locale === 'ru' ? s.name_ru : s.name_ka;
+export function serviceName(
+  s: Pick<Service, 'name_ka' | 'name_ru'> & { name_en?: string | null },
+  locale: string
+) {
+  if (locale === 'ru') return s.name_ru;
+  if (locale === 'en') return s.name_en?.trim() || s.name_ka;
+  return s.name_ka;
 }
 
 export function formatPrice(s: Pick<Service, 'price_from' | 'price_to'>) {

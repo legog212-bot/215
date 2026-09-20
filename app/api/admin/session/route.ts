@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
+import { ADMIN_SESSION_COOKIE, verifyAdminSession } from '@/lib/admin-session';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(req: NextRequest) {
-  const hasAdminCookie = req.cookies.get('admin_session')?.value === 'true';
-  if (!hasAdminCookie) {
+  const ok = await verifyAdminSession(req.cookies.get(ADMIN_SESSION_COOKIE)?.value);
+  if (!ok) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   }
 
@@ -35,7 +36,10 @@ export async function GET(req: NextRequest) {
   });
 
   const targetEmail = 'admin@salon215.local';
-  const authPassword = (process.env.ADMIN_AUTH_PASSWORD ?? 'F8HN2tGaScSYYquXNwUJjJNC').trim().replace(/^["']|["']$/g, '');
+  const authPassword = (process.env.ADMIN_AUTH_PASSWORD ?? '').trim().replace(/^["']|["']$/g, '');
+  if (!authPassword) {
+    return NextResponse.json({ error: 'not configured: missing ADMIN_AUTH_PASSWORD' }, { status: 503 });
+  }
 
   let signRes = await supabase.auth.signInWithPassword({
     email: targetEmail,

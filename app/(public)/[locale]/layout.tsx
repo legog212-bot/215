@@ -23,21 +23,21 @@ export default async function LocaleLayout({
 
   return (
     <html lang={locale}>
-      <body>
+      <body className="bg-[#faf8f4]">
         <NextIntlClientProvider>
-          <div className="mx-auto flex min-h-dvh max-w-lg flex-col px-4">
-            <header className="flex items-center justify-between py-3">
+          <div className="mx-auto flex min-h-dvh max-w-lg flex-col">
+            <header className="sticky top-0 z-30 flex items-center justify-between border-b border-black/5 bg-[#faf8f4]/80 px-4 py-2.5 backdrop-blur-md">
               <Link
                 href="/"
-                className="inline-flex items-center transition-transform hover:scale-[1.02] active:scale-[0.98]"
+                className="inline-flex items-center transition-transform active:scale-[0.98]"
                 aria-label="Beauty Salon №215"
               >
-                <Logo height={74} className="h-[74px] w-auto" />
+                <Logo height={40} className="h-10 w-auto" />
               </Link>
               <LanguageSwitcher />
             </header>
-            <main className="flex-1 pb-8">{children}</main>
-            <footer className="border-t py-4 text-center text-xs text-muted-foreground">
+            <main className="flex-1 px-4 pb-10 pt-4">{children}</main>
+            <footer className="border-t border-black/5 py-5 text-center text-[11px] uppercase tracking-[0.2em] text-brand-gold">
               Care • Radiance • You
             </footer>
           </div>

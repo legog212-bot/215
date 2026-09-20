@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServiceClient, supabaseConfigured } from '@/lib/supabase/server';
 import { createSessionClient } from '@/lib/supabase/session';
+import { ADMIN_SESSION_COOKIE, verifyAdminSession } from '@/lib/admin-session';
 import { sendWhatsAppTemplate, whatsappConfigured } from '@/lib/whatsapp';
 import { serviceName } from '@/lib/types';
 
@@ -18,10 +19,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ sent: false, reason: 'whatsapp not configured' });
   }
 
-  // admin-only: verify the caller has an authenticated session
-  const session = await createSessionClient();
-  const { data: { user } } = await session.auth.getUser();
-  if (!user) {
+  // admin-only: signed admin cookie or an authenticated Supabase session
+  let isAdmin = await verifyAdminSession(req.cookies.get(ADMIN_SESSION_COOKIE)?.value);
+  if (!isAdmin) {
+    const session = await createSessionClient();
+    const { data: { user } } = await session.auth.getUser();
+    isAdmin = Boolean(user);
+  }
+  if (!isAdmin) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   }
 
@@ -31,13 +36,13 @@ export async function POST(req: NextRequest) {
   const supabase = createServiceClient();
   const { data: b } = await supabase
     .from('bookings')
-    .select('*, booking_services(services(name_ka, name_ru))')
+    .select('*, booking_services(services(name_ka, name_ru, name_en))')
     .eq('id', bookingId)
     .single();
   if (!b) return NextResponse.json({ error: 'not found' }, { status: 404 });
 
   const names = (b.booking_services ?? [])
-    .map((bs: { services: { name_ka: string; name_ru: string } | null }) =>
+    .map((bs: { services: { name_ka: string; name_ru: string; name_en: string | null } | null }) =>
       bs.services ? serviceName(bs.services, locale) : ''
     )
     .filter(Boolean)

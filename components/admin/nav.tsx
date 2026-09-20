@@ -34,7 +34,7 @@ export function AdminNav() {
   const logout = async () => {
     const supabase = createBrowserSupabase();
     await supabase.auth.signOut().catch(() => {});
-    document.cookie = 'admin_session=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+    await fetch('/api/admin/logout', { method: 'POST' }).catch(() => {});
     window.location.href = '/admin/login';
   };
 

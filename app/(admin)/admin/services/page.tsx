@@ -32,6 +32,7 @@ interface ServiceForm {
   category_id: string;
   name_ka: string;
   name_ru: string;
+  name_en: string;
   price_from: string;
   price_to: string;
   duration_minutes: string;
@@ -41,6 +42,7 @@ interface CategoryForm {
   id?: string;
   name_ka: string;
   name_ru: string;
+  name_en: string;
 }
 
 export default function AdminServicesPage() {
@@ -75,6 +77,7 @@ export default function AdminServicesPage() {
       category_id: serviceForm.category_id,
       name_ka: serviceForm.name_ka.trim(),
       name_ru: serviceForm.name_ru.trim(),
+      name_en: serviceForm.name_en.trim() || null,
       price_from: Number(serviceForm.price_from),
       price_to: serviceForm.price_to === '' ? null : Number(serviceForm.price_to),
       duration_minutes: Number(serviceForm.duration_minutes) || 30,
@@ -96,6 +99,7 @@ export default function AdminServicesPage() {
     const payload = {
       name_ka: categoryForm.name_ka.trim(),
       name_ru: categoryForm.name_ru.trim(),
+      name_en: categoryForm.name_en.trim() || null,
     };
     const { error } = categoryForm.id
       ? await supabase.from('service_categories').update(payload).eq('id', categoryForm.id)
@@ -183,7 +187,7 @@ export default function AdminServicesPage() {
         <Button
           size="sm"
           variant="outline"
-          onClick={() => setCategoryForm({ name_ka: '', name_ru: '' })}
+          onClick={() => setCategoryForm({ name_ka: '', name_ru: '', name_en: '' })}
         >
           <Plus className="mr-1 h-4 w-4" />
           {t('services.addCategory')}
@@ -219,7 +223,14 @@ export default function AdminServicesPage() {
                   <Button
                     variant="ghost"
                     size="icon"
-                    onClick={() => setCategoryForm({ id: c.id, name_ka: c.name_ka, name_ru: c.name_ru })}
+                    onClick={() =>
+                      setCategoryForm({
+                        id: c.id,
+                        name_ka: c.name_ka,
+                        name_ru: c.name_ru,
+                        name_en: c.name_en ?? '',
+                      })
+                    }
                   >
                     <Pencil className="h-4 w-4" />
                   </Button>
@@ -268,6 +279,7 @@ export default function AdminServicesPage() {
                           category_id: s.category_id,
                           name_ka: s.name_ka,
                           name_ru: s.name_ru,
+                          name_en: s.name_en ?? '',
                           price_from: String(s.price_from),
                           price_to: s.price_to == null ? '' : String(s.price_to),
                           duration_minutes: String(s.duration_minutes),
@@ -290,6 +302,7 @@ export default function AdminServicesPage() {
                       category_id: c.id,
                       name_ka: '',
                       name_ru: '',
+                      name_en: '',
                       price_from: '',
                       price_to: '',
                       duration_minutes: '30',
@@ -331,7 +344,7 @@ export default function AdminServicesPage() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-3 gap-3">
                 <div className="space-y-1.5">
                   <Label>{t('services.nameKa')}</Label>
                   <Input
@@ -344,6 +357,13 @@ export default function AdminServicesPage() {
                   <Input
                     value={serviceForm.name_ru}
                     onChange={(e) => setServiceForm({ ...serviceForm, name_ru: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>{t('services.nameEn')}</Label>
+                  <Input
+                    value={serviceForm.name_en}
+                    onChange={(e) => setServiceForm({ ...serviceForm, name_en: e.target.value })}
                   />
                 </div>
               </div>
@@ -410,6 +430,13 @@ export default function AdminServicesPage() {
                 <Input
                   value={categoryForm.name_ru}
                   onChange={(e) => setCategoryForm({ ...categoryForm, name_ru: e.target.value })}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>{t('services.nameEn')}</Label>
+                <Input
+                  value={categoryForm.name_en}
+                  onChange={(e) => setCategoryForm({ ...categoryForm, name_en: e.target.value })}
                 />
               </div>
               <Button className="w-full" onClick={saveCategory} disabled={busy}>

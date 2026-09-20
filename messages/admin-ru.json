@@ -24,7 +24,9 @@
     "newBooking": "+ Запись",
     "waSent": "WA ✓",
     "waFailed": "WA ✗",
-    "manual": "вручную"
+    "manual": "вручную",
+    "allMasters": "Все мастера",
+    "allStatuses": "Все статусы"
   },
   "statuses": {
     "confirmed": "Подтверждена",
@@ -51,6 +53,7 @@
     "addService": "Добавить услугу",
     "nameKa": "Название (KA)",
     "nameRu": "Название (RU)",
+    "nameEn": "Название (EN)",
     "category": "Категория",
     "priceFrom": "Цена от",
     "priceTo": "Цена до",
