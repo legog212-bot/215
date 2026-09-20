@@ -23,7 +23,17 @@ export interface Service {
 export interface Master {
   id: string;
   name: string;
+  first_name?: string | null;
+  last_name?: string | null;
+  photo_url?: string | null;
   is_active: boolean;
+  is_deleted?: boolean;
+  category_ids?: string[];
+}
+
+export interface MasterCategory {
+  master_id: string;
+  category_id: string;
 }
 
 export interface WorkingHours {

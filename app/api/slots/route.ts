@@ -29,6 +29,7 @@ export async function GET(req: NextRequest) {
       dates: bookingDates(),
       masterId: master,
       durationMinutes: duration,
+      serviceIds,
     });
     const res = NextResponse.json({ days });
     res.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
@@ -40,7 +41,13 @@ export async function GET(req: NextRequest) {
   if (!DATE_RE.test(date) || date < todayTbilisi()) {
     return NextResponse.json({ error: 'date' }, { status: 400 });
   }
-  const slots = await availableSlots({ supabase, date, masterId: master, durationMinutes: duration });
+  const slots = await availableSlots({
+    supabase,
+    date,
+    masterId: master,
+    durationMinutes: duration,
+    serviceIds,
+  });
   const res = NextResponse.json({ slots });
   res.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
   res.headers.set('Netlify-CDN-Cache-Control', 'no-store');

@@ -38,13 +38,52 @@ async function busyFor(supabase: SupabaseClient, masterId: string | null, date: 
   return data ?? [];
 }
 
-export async function activeMasters(supabase: SupabaseClient): Promise<Master[]> {
+export async function activeMasters(
+  supabase: SupabaseClient,
+  serviceIds?: string[]
+): Promise<Master[]> {
   const { data } = await supabase
     .from('masters')
     .select('*')
     .eq('is_active', true)
     .order('created_at');
-  return (data as Master[]) ?? [];
+
+  const list = ((data as Master[]) ?? []).filter((m) => !m.is_deleted);
+
+  if (serviceIds && serviceIds.length > 0) {
+    const { data: svcs } = await supabase
+      .from('services')
+      .select('category_id')
+      .in('id', serviceIds);
+    const requiredCategoryIds = [...new Set((svcs ?? []).map((s) => s.category_id).filter(Boolean))];
+
+    if (requiredCategoryIds.length > 0) {
+      const { data: mc, error } = await supabase
+        .from('master_categories')
+        .select('master_id, category_id')
+        .in('category_id', requiredCategoryIds);
+
+      if (!error && mc && mc.length > 0) {
+        const masterCatMap = new Map<string, Set<string>>();
+        for (const row of mc) {
+          if (!masterCatMap.has(row.master_id)) masterCatMap.set(row.master_id, new Set());
+          masterCatMap.get(row.master_id)!.add(row.category_id);
+        }
+
+        const qualified = list.filter((m) => {
+          const cats = masterCatMap.get(m.id);
+          if (!cats) return false;
+          return requiredCategoryIds.every((cid) => cats.has(cid));
+        });
+
+        if (qualified.length > 0) {
+          return qualified;
+        }
+      }
+    }
+  }
+
+  return list;
 }
 
 /** Total duration of the given service ids (active services only). */
@@ -84,18 +123,19 @@ export async function slotsForMaster(
 
 /**
  * Available slots for a date. masterId 'any'/null → union across all active
- * masters (a slot is free if at least one master can take it).
+ * masters qualified for the given services.
  */
 export async function availableSlots(params: {
   supabase: SupabaseClient;
   date: string;
   masterId: string | null;
   durationMinutes: number;
+  serviceIds?: string[];
 }): Promise<string[]> {
-  const { supabase, date, masterId, durationMinutes } = params;
+  const { supabase, date, masterId, durationMinutes, serviceIds } = params;
   if (masterId) return slotsForMaster(supabase, masterId, date, durationMinutes);
 
-  const masters = await activeMasters(supabase);
+  const masters = await activeMasters(supabase, serviceIds);
   if (masters.length === 0) {
     const hours = await hoursFor(supabase, null, dayOfWeek(date));
     if (hours && !hours.is_day_off && hours.open_time && hours.close_time) {
@@ -131,8 +171,9 @@ export async function availableSlotsSummary(params: {
   dates: string[];
   masterId: string | null;
   durationMinutes: number;
+  serviceIds?: string[];
 }): Promise<Record<string, number>> {
-  const { supabase, dates, masterId, durationMinutes } = params;
+  const { supabase, dates, masterId, durationMinutes, serviceIds } = params;
   if (!dates.length || durationMinutes <= 0) return {};
 
   const minDate = dates[0];
@@ -150,7 +191,7 @@ export async function availableSlotsSummary(params: {
   }
 
   const [masters, hoursRes, bookingsRes] = await Promise.all([
-    masterId ? Promise.resolve([{ id: masterId }] as Master[]) : activeMasters(supabase),
+    masterId ? Promise.resolve([{ id: masterId }] as Master[]) : activeMasters(supabase, serviceIds),
     supabase.from('working_hours').select('*'),
     bookingsQuery,
   ]);
@@ -238,20 +279,24 @@ export async function pickMasterForSlot(params: {
   start: string; // HH:MM
   durationMinutes: number;
   preferredId: string | null;
+  serviceIds?: string[];
+  allowDayOff?: boolean;
 }): Promise<string | null> {
-  const { supabase, date, start, durationMinutes, preferredId } = params;
+  const { supabase, date, start, durationMinutes, preferredId, serviceIds, allowDayOff } = params;
   const candidates = preferredId
     ? ([{ id: preferredId }] as { id: string }[])
-    : await activeMasters(supabase);
+    : await activeMasters(supabase, serviceIds);
 
   const startMin = timeToMinutes(start);
   const endMin = startMin + durationMinutes;
 
   for (const m of candidates) {
     const hours = await hoursFor(supabase, m.id, dayOfWeek(date));
-    if (!hours || hours.is_day_off || !hours.open_time || !hours.close_time) continue;
-    if (startMin < timeToMinutes(hours.open_time) || endMin > timeToMinutes(hours.close_time))
-      continue;
+    if (!allowDayOff) {
+      if (!hours || hours.is_day_off || !hours.open_time || !hours.close_time) continue;
+      if (startMin < timeToMinutes(hours.open_time) || endMin > timeToMinutes(hours.close_time))
+        continue;
+    }
     const busy = await busyFor(supabase, m.id, date);
     const overlaps = busy.some(
       (b) => startMin < timeToMinutes(b.end_time) && timeToMinutes(b.start_time) < endMin

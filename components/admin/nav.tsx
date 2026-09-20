@@ -13,7 +13,6 @@ import {
 } from 'lucide-react';
 import { useAdminT } from '@/lib/admin-i18n';
 import { createBrowserSupabase } from '@/lib/supabase/client';
-import { Logo } from '@/components/logo';
 import { cn } from '@/lib/utils';
 
 const ITEMS = [
@@ -41,10 +40,12 @@ export function AdminNav() {
   return (
     <>
       <header className="flex items-center justify-between px-4 py-3">
-        <div className="flex items-center gap-2">
-          <Logo size={40} />
-          <span className="font-bold text-brand-ink">№215</span>
-          <span className="rounded-md bg-secondary px-1.5 py-0.5 text-[10px] font-semibold uppercase text-brand-ink">
+        <div className="flex items-center gap-1.5">
+          <span className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-gold">
+            Beauty Salon
+          </span>
+          <span className="font-serif text-base font-bold text-brand-ink">№215</span>
+          <span className="ml-1 rounded-md bg-secondary px-1.5 py-0.5 text-[10px] font-semibold uppercase text-brand-ink">
             admin
           </span>
         </div>

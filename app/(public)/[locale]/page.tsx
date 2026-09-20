@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/logo';
 import { Link } from '@/i18n/navigation';
 import { formatPrice, serviceName, type Service, type ServiceCategory } from '@/lib/types';
-import { Clock, Sparkles, ChevronRight } from 'lucide-react';
+import { Clock, ChevronRight } from 'lucide-react';
 
 import { routing } from '@/i18n/routing';
 
@@ -51,9 +51,8 @@ export default async function HomePage({
           <p className="mt-4 max-w-[15rem] text-sm leading-relaxed text-muted-foreground">
             {t('subtitle')}
           </p>
-          <Button asChild size="lg" className="mt-6 w-full max-w-xs gap-2 rounded-2xl shadow-md">
+          <Button asChild size="lg" className="mt-6 w-full max-w-xs rounded-2xl shadow-md">
             <Link href="/booking" prefetch={true}>
-              <Sparkles className="h-4 w-4" />
               {t('bookCta')}
             </Link>
           </Button>

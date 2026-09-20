@@ -80,7 +80,13 @@ export async function POST(req: NextRequest) {
       start,
       durationMinutes: duration,
       preferredId: requestedMaster,
+      serviceIds,
+      allowDayOff: isManager,
     });
+    if (!masterId && isManager && requestedMaster) {
+      // If admin selected this master on a day-off without conflicting booking, allow
+      masterId = requestedMaster;
+    }
     if (!masterId) return NextResponse.json({ error: 'slot_taken' }, { status: 409 });
   }
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Card, CardContent } from '@/components/ui/card';
@@ -42,14 +42,39 @@ export function BookingFlow({ categories, services, masters }: Props) {
 
   const activeServices = services.filter((s) => s.is_active);
   const chosen = activeServices.filter((s) => selected.has(s.id));
+  const chosenCategoryIds = useMemo(
+    () => [...new Set(chosen.map((s) => s.category_id))],
+    [chosen]
+  );
+
+  const eligibleMasters = useMemo(() => {
+    if (chosenCategoryIds.length === 0) return masters;
+    const hasCategoryRestrictions = masters.some(
+      (m) => m.category_ids && m.category_ids.length > 0
+    );
+    if (!hasCategoryRestrictions) return masters;
+    return masters.filter((m) => {
+      if (!m.category_ids || m.category_ids.length === 0) return true;
+      return chosenCategoryIds.every((cid) => m.category_ids?.includes(cid));
+    });
+  }, [masters, chosenCategoryIds]);
+
   const totalDuration = chosen.reduce((a, s) => a + s.duration_minutes, 0);
   const priceFrom = chosen.reduce((a, s) => a + Number(s.price_from), 0);
   const priceTo = chosen.reduce((a, s) => a + Number(s.price_to ?? s.price_from), 0);
 
-  const multiMaster = masters.length > 1;
+  const multiMaster = eligibleMasters.length > 1;
   // steps: 0 services, 1 master (skipped if single), 2 slot, 3 details
   const steps = multiMaster ? [0, 1, 2, 3] : [0, 2, 3];
   const stepLabels = [t('stepServices'), t('stepMaster'), t('stepTime'), t('stepDetails')];
+
+  useEffect(() => {
+    if (eligibleMasters.length === 1) {
+      setMasterId(eligibleMasters[0].id);
+    } else if (masterId && !eligibleMasters.some((m) => m.id === masterId)) {
+      setMasterId(null);
+    }
+  }, [eligibleMasters, masterId]);
 
   const toggle = (id: string) => {
     setSelected((prev) => {
@@ -203,7 +228,7 @@ export function BookingFlow({ categories, services, masters }: Props) {
       {step === 1 && multiMaster && (
         <div className="space-y-3">
           <h2 className="text-lg font-semibold">{t('chooseMaster')}</h2>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
             <button
               type="button"
               onClick={() => {
@@ -211,13 +236,35 @@ export function BookingFlow({ categories, services, masters }: Props) {
                 setSlot({ date: null, time: null });
               }}
               className={cn(
-                'rounded-xl border px-4 py-3 text-sm font-medium shadow-sm',
-                masterId === null ? 'border-primary bg-primary text-primary-foreground' : 'bg-background'
+                'flex items-center gap-3 rounded-2xl border p-3.5 text-left transition-all shadow-sm',
+                masterId === null
+                  ? 'border-primary bg-primary text-primary-foreground shadow-md'
+                  : 'bg-background hover:bg-accent border-black/5'
               )}
             >
-              {t('anyMaster')}
+              <div
+                className={cn(
+                  'flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-xs font-bold uppercase',
+                  masterId === null
+                    ? 'bg-white/20 text-white'
+                    : 'bg-secondary text-brand-ink'
+                )}
+              >
+                ★
+              </div>
+              <div>
+                <p className="font-semibold text-sm">{t('anyMaster')}</p>
+                <p
+                  className={cn(
+                    'text-xs',
+                    masterId === null ? 'text-primary-foreground/80' : 'text-muted-foreground'
+                  )}
+                >
+                  Ближайшее свободное время
+                </p>
+              </div>
             </button>
-            {masters.map((m) => (
+            {eligibleMasters.map((m) => (
               <button
                 key={m.id}
                 type="button"
@@ -226,11 +273,34 @@ export function BookingFlow({ categories, services, masters }: Props) {
                   setSlot({ date: null, time: null });
                 }}
                 className={cn(
-                  'rounded-xl border px-4 py-3 text-sm font-medium shadow-sm',
-                  masterId === m.id ? 'border-primary bg-primary text-primary-foreground' : 'bg-background'
+                  'flex items-center gap-3 rounded-2xl border p-3.5 text-left transition-all shadow-sm',
+                  masterId === m.id
+                    ? 'border-primary bg-primary text-primary-foreground shadow-md'
+                    : 'bg-background hover:bg-accent border-black/5'
                 )}
               >
-                {m.name}
+                {m.photo_url ? (
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  <img
+                    src={m.photo_url}
+                    alt={m.name}
+                    className="h-11 w-11 shrink-0 rounded-full object-cover border border-black/10 shadow-sm"
+                  />
+                ) : (
+                  <div
+                    className={cn(
+                      'flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-xs font-bold uppercase',
+                      masterId === m.id
+                        ? 'bg-white/20 text-white'
+                        : 'bg-secondary text-brand-ink'
+                    )}
+                  >
+                    {m.name.slice(0, 2).toUpperCase()}
+                  </div>
+                )}
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-semibold text-sm">{m.name}</p>
+                </div>
               </button>
             ))}
           </div>

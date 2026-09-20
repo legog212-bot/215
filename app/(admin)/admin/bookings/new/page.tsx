@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { Suspense, useEffect, useMemo, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { createBrowserSupabase } from '@/lib/supabase/client';
 import { useAdminT } from '@/lib/admin-i18n';
 import { useAdminAuth } from '@/components/admin/auth-sync';
@@ -22,9 +22,20 @@ import {
 import { toast } from 'sonner';
 
 export default function AdminNewBookingPage() {
+  return (
+    <Suspense fallback={<p className="p-6 text-center text-sm text-muted-foreground">Загрузка…</p>}>
+      <AdminNewBookingForm />
+    </Suspense>
+  );
+}
+
+function AdminNewBookingForm() {
   const { t, lang } = useAdminT();
   const { isReady } = useAdminAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const initialDate = searchParams.get('date');
+
   const supabase = useMemo(() => createBrowserSupabase(), []);
 
   const [categories, setCategories] = useState<ServiceCategory[]>([]);
@@ -32,7 +43,7 @@ export default function AdminNewBookingPage() {
   const [masters, setMasters] = useState<Master[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [masterId, setMasterId] = useState<string>('any');
-  const [slot, setSlot] = useState<SlotValue>({ date: null, time: null });
+  const [slot, setSlot] = useState<SlotValue>({ date: initialDate || null, time: null });
   const [form, setForm] = useState({ name: '', surname: '', phone: '', comment: '' });
   const [conflict, setConflict] = useState(false);
   const [force, setForce] = useState(false);
@@ -44,10 +55,27 @@ export default function AdminNewBookingPage() {
       supabase.from('service_categories').select('*').eq('is_active', true).order('sort_order'),
       supabase.from('services').select('*').eq('is_active', true).order('sort_order'),
       supabase.from('masters').select('*').eq('is_active', true).order('created_at'),
-    ]).then(([c, s, m]) => {
+      Promise.resolve(supabase.from('master_categories').select('*')).catch(() => ({ data: [] })),
+    ]).then(([c, s, m, mc]) => {
+      const allMasters = (m.data as Master[]) ?? [];
+      const masterCats = (mc.data as { master_id: string; category_id: string }[]) ?? [];
+
+      const masterCatMap = new Map<string, string[]>();
+      for (const row of masterCats) {
+        if (!masterCatMap.has(row.master_id)) masterCatMap.set(row.master_id, []);
+        masterCatMap.get(row.master_id)!.push(row.category_id);
+      }
+
+      const activeNonDeleted = allMasters
+        .filter((master) => !master.is_deleted)
+        .map((master) => ({
+          ...master,
+          category_ids: masterCatMap.get(master.id) ?? [],
+        }));
+
       setCategories(c.data ?? []);
       setServices(s.data ?? []);
-      setMasters(m.data ?? []);
+      setMasters(activeNonDeleted);
     });
   }, [supabase, isReady]);
 
@@ -58,6 +86,23 @@ export default function AdminNewBookingPage() {
       else next.add(id);
       return next;
     });
+
+  // Filter masters by the categories of selected services
+  const eligibleMasters = useMemo(() => {
+    if (!selected.size) return masters;
+    const selectedServices = services.filter((s) => selected.has(s.id));
+    const requiredCategoryIds = [...new Set(selectedServices.map((s) => s.category_id).filter(Boolean))];
+    if (!requiredCategoryIds.length) return masters;
+
+    const qualified = masters.filter((m) => {
+      const cats = m.category_ids || [];
+      if (!cats.length) return false;
+      return requiredCategoryIds.every((cid) => cats.includes(cid));
+    });
+
+    // If some masters are qualified, show only them; if none assigned yet, fallback to all masters
+    return qualified.length > 0 ? qualified : masters;
+  }, [masters, selected, services]);
 
   const submit = async () => {
     if (!form.name.trim() || !form.surname.trim() || !form.phone.trim() || !selected.size) {
@@ -98,9 +143,16 @@ export default function AdminNewBookingPage() {
     router.push('/admin/calendar');
   };
 
+  const getMasterLabel = (m: Master) => {
+    if (m.first_name) {
+      return `${m.first_name} ${m.last_name || ''}`.trim();
+    }
+    return m.name;
+  };
+
   return (
     <div className="space-y-5">
-      <h1 className="text-xl font-bold">{t('bookingForm.title')}</h1>
+      <h1 className="text-xl font-bold text-brand-ink">{t('bookingForm.title')}</h1>
 
       <Card>
         <CardContent className="space-y-4 p-4">
@@ -173,9 +225,9 @@ export default function AdminNewBookingPage() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="any">{t('bookingForm.anyMaster')}</SelectItem>
-            {masters.map((m) => (
+            {eligibleMasters.map((m) => (
               <SelectItem key={m.id} value={m.id}>
-                {m.name}
+                {getMasterLabel(m)}
               </SelectItem>
             ))}
           </SelectContent>
@@ -198,6 +250,7 @@ export default function AdminNewBookingPage() {
             noSlots: t('bookingForm.noSlots'),
             loading: t('actions.loading'),
           }}
+          allowAllDates={true}
         />
       )}
 

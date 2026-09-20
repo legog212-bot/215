@@ -19,6 +19,13 @@ export interface SlotPickerLabels {
   loading: string;
 }
 
+const MANUAL_ADMIN_SLOTS = [
+  '10:00', '10:30', '11:00', '11:30', '12:00', '12:30',
+  '13:00', '13:30', '14:00', '14:30', '15:00', '15:30',
+  '16:00', '16:30', '17:00', '17:30', '18:00', '18:30',
+  '19:00', '19:30', '20:00'
+];
+
 interface BaseProps {
   serviceIds: string[];
   masterId: string | null; // null = any
@@ -26,6 +33,7 @@ interface BaseProps {
   onChange: (v: SlotValue) => void;
   labels: SlotPickerLabels;
   localeTag: string; // e.g. 'ka-GE'
+  allowAllDates?: boolean;
 }
 
 /** Pure slot picker — works outside next-intl (admin) when labels are passed in. */
@@ -36,6 +44,7 @@ export function SlotPickerBase({
   onChange,
   labels,
   localeTag,
+  allowAllDates = false,
 }: BaseProps) {
   const dates = useMemo(() => bookingDates(), []);
   const [counts, setCounts] = useState<Record<string, number>>({});
@@ -90,6 +99,8 @@ export function SlotPickerBase({
   );
   const noonUtc = (d: string) => new Date(`${d}T12:00:00Z`);
 
+  const effectiveSlots = (daySlots && daySlots.length > 0) ? daySlots : (allowAllDates ? MANUAL_ADMIN_SLOTS : []);
+
   return (
     <div className="space-y-4">
       <div>
@@ -97,7 +108,7 @@ export function SlotPickerBase({
         <div className="flex gap-2 overflow-x-auto pb-2">
           {dates.map((d) => {
             const free = counts[d];
-            const disabled = free === 0;
+            const disabled = !allowAllDates && free === 0;
             return (
               <button
                 key={d}
@@ -126,23 +137,30 @@ export function SlotPickerBase({
           <p className="mb-2 text-sm font-medium">{labels.chooseTime}</p>
           {loadingDay ? (
             <p className="text-sm text-muted-foreground">{labels.loading}</p>
-          ) : daySlots && daySlots.length > 0 ? (
-            <div className="grid grid-cols-4 gap-2 sm:grid-cols-6">
-              {daySlots.map((s) => (
-                <button
-                  key={s}
-                  type="button"
-                  onClick={() => onChange({ ...value, time: s })}
-                  className={cn(
-                    'rounded-xl border px-2 py-2 text-sm font-medium shadow-sm transition-colors',
-                    value.time === s
-                      ? 'border-primary bg-primary text-primary-foreground'
-                      : 'bg-background hover:bg-accent'
-                  )}
-                >
-                  {s}
-                </button>
-              ))}
+          ) : effectiveSlots.length > 0 ? (
+            <div className="space-y-2">
+              {(!daySlots || daySlots.length === 0) && allowAllDates && (
+                <p className="text-xs text-muted-foreground italic">
+                  Выходной день или нет свободных окон — доступен ручной выбор времени для записи:
+                </p>
+              )}
+              <div className="grid grid-cols-4 gap-2 sm:grid-cols-6">
+                {effectiveSlots.map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => onChange({ ...value, time: s })}
+                    className={cn(
+                      'rounded-xl border px-2 py-2 text-sm font-medium shadow-sm transition-colors',
+                      value.time === s
+                        ? 'border-primary bg-primary text-primary-foreground'
+                        : 'bg-background hover:bg-accent'
+                    )}
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
             </div>
           ) : (
             <p className="text-sm text-muted-foreground">{labels.noSlots}</p>

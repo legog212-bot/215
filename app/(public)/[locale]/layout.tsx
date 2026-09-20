@@ -2,7 +2,6 @@ import { notFound } from 'next/navigation';
 import { hasLocale, NextIntlClientProvider } from 'next-intl';
 import { routing } from '@/i18n/routing';
 import { LanguageSwitcher } from '@/components/language-switcher';
-import { Logo } from '@/components/logo';
 import { Link } from '@/i18n/navigation';
 import { Toaster } from '@/components/ui/sonner';
 import '../../globals.css';
@@ -29,10 +28,15 @@ export default async function LocaleLayout({
             <header className="sticky top-0 z-30 flex items-center justify-between border-b border-black/5 bg-[#faf8f4]/80 px-4 py-2.5 backdrop-blur-md">
               <Link
                 href="/"
-                className="inline-flex items-center transition-transform active:scale-[0.98]"
+                className="inline-flex items-baseline gap-1.5 transition-transform active:scale-[0.98]"
                 aria-label="Beauty Salon №215"
               >
-                <Logo height={40} className="h-10 w-auto" />
+                <span className="text-xs font-semibold uppercase tracking-[0.22em] text-brand-gold">
+                  Beauty Salon
+                </span>
+                <span className="font-serif text-lg font-bold tracking-tight text-brand-ink">
+                  №215
+                </span>
               </Link>
               <LanguageSwitcher />
             </header>
