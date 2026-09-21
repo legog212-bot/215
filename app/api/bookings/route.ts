@@ -7,12 +7,28 @@ import { normalizePhone } from '@/lib/phone';
 import { rateLimitOk } from '@/lib/rate-limit';
 import { sendWhatsAppTemplate, whatsappConfigured } from '@/lib/whatsapp';
 import { bookingDates } from '@/lib/slots';
+import { timeToMinutes } from '@/lib/tz';
 import { serviceName } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const TIME_RE = /^\d{2}:\d{2}$/;
+const MAX_LEGS = 10;
+
+interface RawLeg {
+  serviceIds?: unknown;
+  masterId?: unknown;
+  date?: unknown;
+  start?: unknown;
+}
+
+interface Leg {
+  serviceIds: string[];
+  masterId: string | null;
+  date: string;
+  start: string;
+}
 
 export async function POST(req: NextRequest) {
   if (!supabaseConfigured()) {
@@ -43,93 +59,137 @@ export async function POST(req: NextRequest) {
   const surname = String(body.surname ?? '').trim();
   const comment = String(body.comment ?? '').trim();
   const locale = ['ka', 'ru', 'en'].includes(String(body.locale)) ? String(body.locale) : 'ka';
-  const serviceIds = Array.isArray(body.serviceIds)
-    ? body.serviceIds.filter((s): s is string => typeof s === 'string')
-    : [];
-  const date = String(body.date ?? '');
-  const start = String(body.start ?? '');
-  const requestedMaster = typeof body.masterId === 'string' ? body.masterId : null;
+
+  // legs = one item per separately-scheduled service; the legacy flat shape
+  // (serviceIds+date+start) is treated as a single leg so older callers work.
+  const rawLegs: RawLeg[] = Array.isArray(body.legs)
+    ? (body.legs as RawLeg[])
+    : [{ serviceIds: body.serviceIds, masterId: body.masterId, date: body.date, start: body.start }];
 
   if (!name || !surname) return NextResponse.json({ error: 'fields' }, { status: 400 });
-  if (!serviceIds.length) return NextResponse.json({ error: 'services' }, { status: 400 });
-  if (!DATE_RE.test(date) || !bookingDates().includes(date))
-    return NextResponse.json({ error: 'date' }, { status: 400 });
-  if (!TIME_RE.test(start)) return NextResponse.json({ error: 'time' }, { status: 400 });
+  if (!rawLegs.length || rawLegs.length > MAX_LEGS) {
+    return NextResponse.json({ error: 'services' }, { status: 400 });
+  }
+
+  const validDates = bookingDates();
+  const legs: Leg[] = [];
+  for (const raw of rawLegs) {
+    const serviceIds = Array.isArray(raw.serviceIds)
+      ? raw.serviceIds.filter((s): s is string => typeof s === 'string')
+      : [];
+    const date = String(raw.date ?? '');
+    const start = String(raw.start ?? '');
+    if (!serviceIds.length) return NextResponse.json({ error: 'services' }, { status: 400 });
+    if (!DATE_RE.test(date) || !validDates.includes(date)) {
+      return NextResponse.json({ error: 'date' }, { status: 400 });
+    }
+    if (!TIME_RE.test(start)) return NextResponse.json({ error: 'time' }, { status: 400 });
+    legs.push({
+      serviceIds,
+      masterId: typeof raw.masterId === 'string' && raw.masterId ? raw.masterId : null,
+      date,
+      start,
+    });
+  }
 
   const phone = normalizePhone(String(body.phone ?? ''));
   if (!phone) return NextResponse.json({ error: 'phone' }, { status: 400 });
 
-  // force = admin override (skip conflict check) — requires a logged-in admin session
-  let force = false;
   const isManager = await isAdmin(req);
-  if (body.force === true && isManager) {
-    force = true;
-  }
+  const force = body.force === true && isManager;
 
   const supabase = createServiceClient();
-  const duration = await servicesDuration(supabase, serviceIds);
-  if (duration <= 0) return NextResponse.json({ error: 'services' }, { status: 400 });
 
-  let masterId: string | null;
-  if (force) {
-    masterId = requestedMaster;
-  } else {
-    masterId = await pickMasterForSlot({
-      supabase,
-      date,
-      start,
-      durationMinutes: duration,
-      preferredId: requestedMaster,
-      serviceIds,
-      allowDayOff: isManager,
-    });
-    // No silent fallback for admins: day-offs are already allowed above, so a
-    // null here means a real overlap — answer 409 and let them confirm (force).
-    if (!masterId) return NextResponse.json({ error: 'slot_taken' }, { status: 409 });
+  // durations per leg (a leg may still bundle several services sequentially)
+  const durations: number[] = [];
+  for (const leg of legs) {
+    const d = await servicesDuration(supabase, leg.serviceIds);
+    if (d <= 0) return NextResponse.json({ error: 'services' }, { status: 400 });
+    durations.push(d);
   }
 
-  const cancelToken = crypto.randomUUID();
-  const source: 'admin' | 'client' = isManager ? 'admin' : 'client';
+  // the visitor can't be in two places at once — legs must not overlap,
+  // no matter which masters they end up with
+  for (let i = 0; i < legs.length; i++) {
+    for (let j = i + 1; j < legs.length; j++) {
+      if (legs[i].date !== legs[j].date) continue;
+      const a0 = timeToMinutes(legs[i].start);
+      const a1 = a0 + durations[i];
+      const b0 = timeToMinutes(legs[j].start);
+      const b1 = b0 + durations[j];
+      if (a0 < b1 && b0 < a1) {
+        return NextResponse.json({ error: 'legs_overlap' }, { status: 409 });
+      }
+    }
+  }
 
-  const { data, error } = await supabase.rpc('create_booking', {
-    p_master_id: masterId,
-    p_date: date,
-    p_start: start,
-    p_end: endTime(start, duration),
+  // resolve a master for every leg against real salon occupancy
+  for (let i = 0; i < legs.length; i++) {
+    if (force) continue;
+    const masterId = await pickMasterForSlot({
+      supabase,
+      date: legs[i].date,
+      start: legs[i].start,
+      durationMinutes: durations[i],
+      preferredId: legs[i].masterId,
+      serviceIds: legs[i].serviceIds,
+      allowDayOff: isManager,
+    });
+    if (!masterId) {
+      return NextResponse.json({ error: 'slot_taken', leg: i }, { status: 409 });
+    }
+    legs[i].masterId = masterId;
+  }
+
+  const { data, error } = await supabase.rpc('create_booking_group', {
     p_name: name,
     p_surname: surname,
     p_phone: phone,
     p_comment: comment,
-    p_service_ids: serviceIds,
-    p_source: source,
-    p_cancel_token: cancelToken,
+    p_source: isManager ? 'admin' : 'client',
+    p_legs: legs.map((l, i) => ({
+      master_id: l.masterId,
+      date: l.date,
+      start: l.start,
+      end: endTime(l.start, durations[i]),
+      service_ids: l.serviceIds,
+    })),
   });
 
   if (error) {
-    // unique_active_booking violation — the slot was grabbed between our check and insert
+    // unique_active_booking violation — a slot was grabbed between check and insert
     if (error.code === '23505') {
       return NextResponse.json({ error: 'slot_taken' }, { status: 409 });
     }
     return NextResponse.json({ error: 'server' }, { status: 500 });
   }
 
-  const orderNumber = (data as { order_number: string }).order_number;
+  const { order_number: orderNumber, group_id: groupId } = data as {
+    order_number: string;
+    group_id: string;
+  };
+
   const whatsappSent = await notifyClient(req, {
     phone,
     name,
     orderNumber,
-    serviceIds,
-    date,
-    start,
-    cancelToken,
+    legs,
+    groupId,
     locale,
   });
   if (whatsappSent) {
-    await supabase.from('bookings').update({ whatsapp_sent: true }).eq('id', data.id);
+    await supabase.from('bookings').update({ whatsapp_sent: true }).eq('group_id', groupId);
   }
-  await notifyManager(req, { phone, name, surname, orderNumber, date, start });
+  await notifyManager(req, {
+    phone,
+    name,
+    surname,
+    orderNumber,
+    date: legs[0].date,
+    start: legs[0].start,
+  });
 
-  return NextResponse.json({ ok: true, orderNumber, cancelToken, whatsappSent });
+  return NextResponse.json({ ok: true, orderNumber, cancelToken: groupId, whatsappSent });
 }
 
 async function isAdmin(req: NextRequest): Promise<boolean> {
@@ -157,28 +217,38 @@ async function notifyClient(
     phone: string;
     name: string;
     orderNumber: string;
-    serviceIds: string[];
-    date: string;
-    start: string;
-    cancelToken: string;
+    legs: Leg[];
+    groupId: string;
     locale: string;
   }
 ): Promise<boolean> {
   if (!whatsappConfigured()) return false;
   try {
     const supabase = createServiceClient();
+    const allIds = [...new Set(p.legs.flatMap((l) => l.serviceIds))];
     const { data: services } = await supabase
       .from('services')
-      .select('name_ka, name_ru, name_en')
-      .in('id', p.serviceIds);
-    const names = (services ?? []).map((s) => serviceName(s, p.locale)).join(', ');
-    const manageUrl = `${siteUrl(req)}/${p.locale}/manage/${p.cancelToken}`;
+      .select('id, name_ka, name_ru, name_en')
+      .in('id', allIds);
+    const byId = new Map((services ?? []).map((s) => [s.id, s]));
+    // one line per leg: "Стрижка · 12.05 11:00"
+    const schedule = p.legs
+      .map((l) => {
+        const names = l.serviceIds
+          .map((id) => byId.get(id))
+          .filter(Boolean)
+          .map((s) => serviceName(s!, p.locale))
+          .join(' + ');
+        return `${names} · ${l.date} ${l.start}`;
+      })
+      .join(', ');
+    const manageUrl = `${siteUrl(req)}/${p.locale}/manage/${p.groupId}`;
 
     return await sendWhatsAppTemplate({
       to: p.phone,
       template: process.env.WHATSAPP_TEMPLATE_NAME ?? 'booking_confirmation',
       locale: p.locale,
-      bodyParams: [p.name, p.orderNumber, names, p.date, p.start, manageUrl],
+      bodyParams: [p.name, p.orderNumber, schedule, p.legs[0].date, p.legs[0].start, manageUrl],
     });
   } catch {
     return false;

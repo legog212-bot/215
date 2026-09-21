@@ -11,8 +11,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { SlotPicker, type SlotValue } from '@/components/slot-picker';
-import { serviceName, type BookingDetails } from '@/lib/types';
+import { SlotPicker, type BlockedInterval, type SlotValue } from '@/components/slot-picker';
+import { serviceName, type BookingDetails, type VisitDetails, type VisitLeg } from '@/lib/types';
+import { timeToMinutes } from '@/lib/tz';
 import { cn } from '@/lib/utils';
 
 const STATUS_VARIANT: Record<string, 'success' | 'destructive' | 'muted' | 'secondary'> = {
@@ -22,26 +23,52 @@ const STATUS_VARIANT: Record<string, 'success' | 'destructive' | 'muted' | 'seco
   no_show: 'muted',
 };
 
-export function ManageBooking({ booking, token }: { booking: BookingDetails; token: string }) {
+export function ManageBooking({ visit }: { visit: VisitDetails }) {
   const t = useTranslations('manage');
   const ts = useTranslations('success');
   const tb = useTranslations('booking');
   const locale = useLocale();
 
-  const [current, setCurrent] = useState(booking);
-  const [confirmOpen, setConfirmOpen] = useState(false);
-  const [reschedOpen, setReschedOpen] = useState(false);
+  const [legs, setLegs] = useState<VisitLeg[]>(visit.legs);
+  const [confirmLeg, setConfirmLeg] = useState<VisitLeg | null>(null);
+  const [reschedLeg, setReschedLeg] = useState<VisitLeg | null>(null);
   const [slot, setSlot] = useState<SlotValue>({ date: null, time: null });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const editable = current.status === 'confirmed';
+  /** The visitor's other legs block rescheduling onto overlapping times. */
+  const blockedFor = (legId: string): BlockedInterval[] =>
+    legs
+      .filter((l) => l.id !== legId && l.status === 'confirmed')
+      .map((l) => ({
+        date: l.booking_date,
+        startMin: timeToMinutes(String(l.start_time).slice(0, 5)),
+        endMin: timeToMinutes(String(l.end_time).slice(0, 5)),
+      }));
+
+  const applyUpdate = (legId: string, updated: BookingDetails) =>
+    setLegs((prev) =>
+      prev.map((l) =>
+        l.id === legId
+          ? {
+              ...l,
+              status: updated.status,
+              booking_date: updated.booking_date,
+              start_time: updated.start_time,
+              end_time: updated.end_time,
+              master_id: updated.master_id,
+              master_name: updated.master_name,
+            }
+          : l
+      )
+    );
 
   const cancel = async () => {
+    if (!confirmLeg) return;
     setBusy(true);
     setError(null);
     try {
-      const res = await fetch(`/api/bookings/${token}`, {
+      const res = await fetch(`/api/bookings/${confirmLeg.cancel_token}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'cancel' }),
@@ -51,8 +78,8 @@ export function ManageBooking({ booking, token }: { booking: BookingDetails; tok
         return;
       }
       const data = await res.json();
-      setCurrent(data);
-      setConfirmOpen(false);
+      applyUpdate(confirmLeg.id, data);
+      setConfirmLeg(null);
     } catch {
       setError('failed');
     } finally {
@@ -61,11 +88,11 @@ export function ManageBooking({ booking, token }: { booking: BookingDetails; tok
   };
 
   const reschedule = async () => {
-    if (!slot.date || !slot.time) return;
+    if (!reschedLeg || !slot.date || !slot.time) return;
     setBusy(true);
     setError(null);
     try {
-      const res = await fetch(`/api/bookings/${token}?locale=${locale}`, {
+      const res = await fetch(`/api/bookings/${reschedLeg.cancel_token}?locale=${locale}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'reschedule', date: slot.date, start: slot.time }),
@@ -79,8 +106,8 @@ export function ManageBooking({ booking, token }: { booking: BookingDetails; tok
         return;
       }
       const data = await res.json();
-      setCurrent(data);
-      setReschedOpen(false);
+      applyUpdate(reschedLeg.id, data);
+      setReschedLeg(null);
     } catch {
       setError('failed');
     } finally {
@@ -91,56 +118,82 @@ export function ManageBooking({ booking, token }: { booking: BookingDetails; tok
   return (
     <div className="space-y-4">
       <Card>
-        <CardContent className="space-y-3 p-5">
-          <div className="flex items-center justify-between">
-            <p className="text-lg font-bold text-brand-ink">{current.order_number}</p>
-            <Badge variant={STATUS_VARIANT[current.status] ?? 'secondary'}>
-              {t(`statuses.${current.status}`)}
-            </Badge>
-          </div>
-          <div className="space-y-1 text-sm">
-            <p>
-              <span className="text-muted-foreground">{ts('services')}: </span>
-              {current.services.map((s) => serviceName(s, locale)).join(' + ')}
-            </p>
-            <p>
-              <span className="text-muted-foreground">{ts('date')}: </span>
-              {current.booking_date}
-            </p>
-            <p>
-              <span className="text-muted-foreground">{ts('time')}: </span>
-              {String(current.start_time).slice(0, 5)}–{String(current.end_time).slice(0, 5)}
-            </p>
-            {current.master_name && (
-              <p>
-                <span className="text-muted-foreground">{ts('master')}: </span>
-                {current.master_name}
-              </p>
-            )}
-          </div>
+        <CardContent className="flex items-center justify-between p-5">
+          <p className="text-lg font-bold text-brand-ink">{visit.order_number}</p>
+          <p className="text-sm text-muted-foreground">
+            {visit.client_name} {visit.client_surname}
+          </p>
         </CardContent>
       </Card>
 
-      {editable && (
-        <div className="flex gap-3">
-          <Button
-            variant="outline"
-            className="flex-1"
-            onClick={() => {
-              setSlot({ date: null, time: null });
-              setError(null);
-              setReschedOpen(true);
-            }}
-          >
-            {t('reschedule')}
-          </Button>
-          <Button variant="destructive" className="flex-1" onClick={() => setConfirmOpen(true)}>
-            {t('cancel')}
-          </Button>
-        </div>
+      {legs.map((leg) => {
+        const editable = leg.status === 'confirmed';
+        return (
+          <Card key={leg.id}>
+            <CardContent className="space-y-3 p-5">
+              <div className="flex items-center justify-between gap-2">
+                <p className="font-medium text-brand-ink">
+                  {leg.services.map((s) => serviceName(s, locale)).join(' + ')}
+                </p>
+                <Badge variant={STATUS_VARIANT[leg.status] ?? 'secondary'}>
+                  {t(`statuses.${leg.status}`)}
+                </Badge>
+              </div>
+              <div className="space-y-1 text-sm">
+                <p>
+                  <span className="text-muted-foreground">{ts('date')}: </span>
+                  {leg.booking_date}
+                </p>
+                <p>
+                  <span className="text-muted-foreground">{ts('time')}: </span>
+                  {String(leg.start_time).slice(0, 5)}–{String(leg.end_time).slice(0, 5)}
+                </p>
+                {leg.master_name && (
+                  <p>
+                    <span className="text-muted-foreground">{ts('master')}: </span>
+                    {leg.master_name}
+                  </p>
+                )}
+              </div>
+              {editable && (
+                <div className="flex gap-3 pt-1">
+                  <Button
+                    variant="outline"
+                    className="flex-1"
+                    onClick={() => {
+                      setSlot({ date: null, time: null });
+                      setError(null);
+                      setReschedLeg(leg);
+                    }}
+                  >
+                    {t('reschedule')}
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    className="flex-1"
+                    onClick={() => {
+                      setError(null);
+                      setConfirmLeg(leg);
+                    }}
+                  >
+                    {t('cancel')}
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        );
+      })}
+
+      {visit.comment && (
+        <Card>
+          <CardContent className="p-4 text-sm text-muted-foreground">
+            {visit.comment}
+          </CardContent>
+        </Card>
       )}
 
-      <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+      <Dialog open={confirmLeg !== null} onOpenChange={(o) => !o && setConfirmLeg(null)}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>{t('cancel')}</DialogTitle>
@@ -150,7 +203,7 @@ export function ManageBooking({ booking, token }: { booking: BookingDetails; tok
             <p className="text-sm font-medium text-destructive">{t('actionFailed')}</p>
           )}
           <div className="flex gap-3">
-            <Button variant="outline" className="flex-1" onClick={() => setConfirmOpen(false)}>
+            <Button variant="outline" className="flex-1" onClick={() => setConfirmLeg(null)}>
               {t('keepIt')}
             </Button>
             <Button variant="destructive" className="flex-1" onClick={cancel} disabled={busy}>
@@ -160,17 +213,24 @@ export function ManageBooking({ booking, token }: { booking: BookingDetails; tok
         </DialogContent>
       </Dialog>
 
-      <Dialog open={reschedOpen} onOpenChange={setReschedOpen}>
+      <Dialog open={reschedLeg !== null} onOpenChange={(o) => !o && setReschedLeg(null)}>
         <DialogContent className="max-h-[90dvh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{t('pickNewTime')}</DialogTitle>
           </DialogHeader>
-          <SlotPicker
-            serviceIds={current.services.map((s) => s.id)}
-            masterId={current.master_id}
-            value={slot}
-            onChange={setSlot}
-          />
+          {reschedLeg && (
+            <SlotPicker
+              serviceIds={reschedLeg.services.map((s) => s.id)}
+              masterId={reschedLeg.master_id}
+              durationMinutes={reschedLeg.services.reduce(
+                (a, s) => a + s.duration_minutes,
+                0
+              )}
+              blocked={blockedFor(reschedLeg.id)}
+              value={slot}
+              onChange={setSlot}
+            />
+          )}
           {error === 'slot_taken' && (
             <p className="text-sm font-medium text-destructive">{tb('slotTaken')}</p>
           )}

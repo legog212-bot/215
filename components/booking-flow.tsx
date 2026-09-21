@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Card, CardContent } from '@/components/ui/card';
@@ -8,14 +8,21 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { SlotPicker, type SlotValue } from '@/components/slot-picker';
+import { SlotPicker, type BlockedInterval } from '@/components/slot-picker';
 import { cn } from '@/lib/utils';
+import { timeToMinutes } from '@/lib/tz';
 import { formatPrice, serviceName, type Master, type Service, type ServiceCategory } from '@/lib/types';
 
 interface Props {
   categories: ServiceCategory[];
   services: Service[];
   masters: Master[];
+}
+
+interface Leg {
+  masterId: string | null; // null = any free master
+  date: string | null;
+  time: string | null;
 }
 
 export function BookingFlow({ categories, services, masters }: Props) {
@@ -32,49 +39,56 @@ export function BookingFlow({ categories, services, masters }: Props) {
 
   const [step, setStep] = useState(0);
   const [selected, setSelected] = useState<Set<string>>(preselected);
-  const [masterId, setMasterId] = useState<string | null>(
-    masters.length === 1 ? masters[0].id : null
-  );
-  const [slot, setSlot] = useState<SlotValue>({ date: null, time: null });
+  const [legs, setLegs] = useState<Record<string, Leg>>({});
   const [form, setForm] = useState({ name: '', surname: '', phone: '', comment: '', website: '' });
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   const activeServices = services.filter((s) => s.is_active);
   const chosen = activeServices.filter((s) => selected.has(s.id));
-  const chosenCategoryIds = useMemo(
-    () => [...new Set(chosen.map((s) => s.category_id))],
-    [chosen]
-  );
 
-  const eligibleMasters = useMemo(() => {
-    if (chosenCategoryIds.length === 0) return masters;
-    const hasCategoryRestrictions = masters.some(
-      (m) => m.category_ids && m.category_ids.length > 0
+  /** Masters qualified for ONE service — a specialist can't take other categories. */
+  const mastersForService = (s: Service): Master[] => {
+    const anyRestricted = masters.some((m) => m.category_ids && m.category_ids.length > 0);
+    if (!anyRestricted) return masters;
+    return masters.filter(
+      (m) => !m.category_ids?.length || m.category_ids.includes(s.category_id)
     );
-    if (!hasCategoryRestrictions) return masters;
-    return masters.filter((m) => {
-      if (!m.category_ids || m.category_ids.length === 0) return true;
-      return chosenCategoryIds.every((cid) => m.category_ids?.includes(cid));
+  };
+
+  const legFor = (s: Service): Leg => {
+    const existing = legs[s.id];
+    if (existing) return existing;
+    const eligible = mastersForService(s);
+    return { masterId: eligible.length === 1 ? eligible[0].id : null, date: null, time: null };
+  };
+
+  const setLeg = (serviceId: string, patch: Partial<Leg>) =>
+    setLegs((prev) => {
+      const service = services.find((s) => s.id === serviceId);
+      const base = prev[serviceId] ?? (service ? legFor(service) : { masterId: null, date: null, time: null });
+      return { ...prev, [serviceId]: { ...base, ...patch } };
     });
-  }, [masters, chosenCategoryIds]);
+
+  /** Intervals the visitor already occupies via other chosen services. */
+  const blockedFor = (serviceId: string): BlockedInterval[] =>
+    chosen
+      .filter((s) => s.id !== serviceId)
+      .map((s) => {
+        const leg = legs[s.id];
+        if (!leg?.date || !leg.time) return null;
+        const startMin = timeToMinutes(leg.time);
+        return { date: leg.date, startMin, endMin: startMin + s.duration_minutes };
+      })
+      .filter((b): b is BlockedInterval => b !== null);
 
   const totalDuration = chosen.reduce((a, s) => a + s.duration_minutes, 0);
   const priceFrom = chosen.reduce((a, s) => a + Number(s.price_from), 0);
   const priceTo = chosen.reduce((a, s) => a + Number(s.price_to ?? s.price_from), 0);
 
-  const multiMaster = eligibleMasters.length > 1;
-  // steps: 0 services, 1 master (skipped if single), 2 slot, 3 details
-  const steps = multiMaster ? [0, 1, 2, 3] : [0, 2, 3];
-  const stepLabels = [t('stepServices'), t('stepMaster'), t('stepTime'), t('stepDetails')];
-
-  useEffect(() => {
-    if (eligibleMasters.length === 1) {
-      setMasterId(eligibleMasters[0].id);
-    } else if (masterId && !eligibleMasters.some((m) => m.id === masterId)) {
-      setMasterId(null);
-    }
-  }, [eligibleMasters, masterId]);
+  // steps: 0 services, 1 schedule (per-service master+time), 2 details
+  const steps = [0, 1, 2];
+  const stepLabels = [t('stepServices'), t('stepTime'), t('stepDetails')];
 
   const toggle = (id: string) => {
     setSelected((prev) => {
@@ -83,14 +97,42 @@ export function BookingFlow({ categories, services, masters }: Props) {
       else next.add(id);
       return next;
     });
-    setSlot({ date: null, time: null }); // duration changed → slots invalid
+  };
+
+  const legsComplete = () =>
+    chosen.every((s) => {
+      const leg = legFor(s);
+      return leg.date && leg.time;
+    });
+
+  /** Client-side sanity check: chosen legs never overlap each other. */
+  const legsOverlap = () => {
+    const filled = chosen
+      .map((s) => ({ s, leg: legFor(s) }))
+      .filter((x) => x.leg.date && x.leg.time);
+    for (let i = 0; i < filled.length; i++) {
+      for (let j = i + 1; j < filled.length; j++) {
+        const a = filled[i];
+        const b = filled[j];
+        if (a.leg.date !== b.leg.date) continue;
+        const a0 = timeToMinutes(a.leg.time!);
+        const a1 = a0 + a.s.duration_minutes;
+        const b0 = timeToMinutes(b.leg.time!);
+        const b1 = b0 + b.s.duration_minutes;
+        if (a0 < b1 && b0 < a1) return true;
+      }
+    }
+    return false;
   };
 
   const goNext = () => {
     setError(null);
     const idx = steps.indexOf(step);
     if (step === 0 && selected.size === 0) return setError(t('selectServiceError'));
-    if (step === 2 && (!slot.date || !slot.time)) return setError(t('selectTimeError'));
+    if (step === 1) {
+      if (!legsComplete()) return setError(t('selectTimeError'));
+      if (legsOverlap()) return setError(t('legsOverlap'));
+    }
     setStep(steps[idx + 1]);
   };
   const goBack = () => {
@@ -114,18 +156,22 @@ export function BookingFlow({ categories, services, masters }: Props) {
           phone: form.phone.trim(),
           comment: form.comment.trim(),
           website: form.website, // honeypot
-          serviceIds: [...selected],
-          masterId,
-          date: slot.date,
-          start: slot.time,
+          legs: chosen.map((s) => {
+            const leg = legFor(s);
+            return {
+              serviceIds: [s.id],
+              masterId: leg.masterId,
+              date: leg.date,
+              start: leg.time,
+            };
+          }),
           locale,
         }),
       });
       const data = await res.json();
       if (res.status === 409) {
-        setError(t('slotTaken'));
-        setStep(2);
-        setSlot({ ...slot, time: null });
+        setError(data.error === 'legs_overlap' ? t('legsOverlap') : t('slotTaken'));
+        setStep(1);
         return;
       }
       if (!res.ok) {
@@ -225,98 +271,79 @@ export function BookingFlow({ categories, services, masters }: Props) {
         </div>
       )}
 
-      {step === 1 && multiMaster && (
-        <div className="space-y-3">
-          <h2 className="text-lg font-semibold">{t('chooseMaster')}</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-            <button
-              type="button"
-              onClick={() => {
-                setMasterId(null);
-                setSlot({ date: null, time: null });
-              }}
-              className={cn(
-                'flex items-center gap-3 rounded-2xl border p-3.5 text-left transition-all shadow-sm',
-                masterId === null
-                  ? 'border-primary bg-primary text-primary-foreground shadow-md'
-                  : 'bg-background hover:bg-accent border-black/5'
-              )}
-            >
-              <div
-                className={cn(
-                  'flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-xs font-bold uppercase',
-                  masterId === null
-                    ? 'bg-white/20 text-white'
-                    : 'bg-secondary text-brand-ink'
-                )}
-              >
-                ★
-              </div>
-              <div>
-                <p className="font-semibold text-sm">{t('anyMaster')}</p>
-                <p
-                  className={cn(
-                    'text-xs',
-                    masterId === null ? 'text-primary-foreground/80' : 'text-muted-foreground'
-                  )}
-                >
-                  {t('anyMasterHint')}
-                </p>
-              </div>
-            </button>
-            {eligibleMasters.map((m) => (
-              <button
-                key={m.id}
-                type="button"
-                onClick={() => {
-                  setMasterId(m.id);
-                  setSlot({ date: null, time: null });
-                }}
-                className={cn(
-                  'flex items-center gap-3 rounded-2xl border p-3.5 text-left transition-all shadow-sm',
-                  masterId === m.id
-                    ? 'border-primary bg-primary text-primary-foreground shadow-md'
-                    : 'bg-background hover:bg-accent border-black/5'
-                )}
-              >
-                {m.photo_url ? (
-                  /* eslint-disable-next-line @next/next/no-img-element */
-                  <img
-                    src={m.photo_url}
-                    alt={m.name}
-                    className="h-11 w-11 shrink-0 rounded-full object-cover border border-black/10 shadow-sm"
-                  />
-                ) : (
-                  <div
-                    className={cn(
-                      'flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-xs font-bold uppercase',
-                      masterId === m.id
-                        ? 'bg-white/20 text-white'
-                        : 'bg-secondary text-brand-ink'
-                    )}
-                  >
-                    {m.name.slice(0, 2).toUpperCase()}
+      {step === 1 && (
+        <div className="space-y-5">
+          <h2 className="text-lg font-semibold">{t('stepTime')}</h2>
+          {chosen.map((s) => {
+            const eligible = mastersForService(s);
+            const leg = legFor(s);
+            const showMasterChips = eligible.length > 1;
+            return (
+              <Card key={s.id} className="rounded-2xl">
+                <CardContent className="space-y-4 p-4">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="font-medium text-brand-ink">{serviceName(s, locale)}</p>
+                    <p className="shrink-0 text-sm text-muted-foreground">
+                      {tc('minutes', { count: s.duration_minutes })}
+                    </p>
                   </div>
-                )}
-                <div className="min-w-0 flex-1">
-                  <p className="truncate font-semibold text-sm">{m.name}</p>
-                </div>
-              </button>
-            ))}
-          </div>
+
+                  {showMasterChips && (
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setLeg(s.id, { masterId: null, time: null })}
+                        className={cn(
+                          'rounded-full border px-3.5 py-1.5 text-sm transition-colors',
+                          leg.masterId === null
+                            ? 'border-primary bg-primary text-primary-foreground'
+                            : 'bg-background hover:bg-accent'
+                        )}
+                      >
+                        {t('anyMaster')}
+                      </button>
+                      {eligible.map((m) => (
+                        <button
+                          key={m.id}
+                          type="button"
+                          onClick={() => setLeg(s.id, { masterId: m.id, time: null })}
+                          className={cn(
+                            'flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-sm transition-colors',
+                            leg.masterId === m.id
+                              ? 'border-primary bg-primary text-primary-foreground'
+                              : 'bg-background hover:bg-accent'
+                          )}
+                        >
+                          {m.photo_url && (
+                            /* eslint-disable-next-line @next/next/no-img-element */
+                            <img
+                              src={m.photo_url}
+                              alt={m.name}
+                              className="h-5 w-5 rounded-full object-cover"
+                            />
+                          )}
+                          {m.name}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  <SlotPicker
+                    serviceIds={[s.id]}
+                    masterId={leg.masterId}
+                    durationMinutes={s.duration_minutes}
+                    blocked={blockedFor(s.id)}
+                    value={{ date: leg.date, time: leg.time }}
+                    onChange={(v) => setLeg(s.id, { date: v.date, time: v.time })}
+                  />
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       )}
 
       {step === 2 && (
-        <SlotPicker
-          serviceIds={[...selected]}
-          masterId={masterId}
-          value={slot}
-          onChange={setSlot}
-        />
-      )}
-
-      {step === 3 && (
         <div className="space-y-4">
           <h2 className="text-lg font-semibold">{t('stepDetails')}</h2>
           <Card>
@@ -377,14 +404,20 @@ export function BookingFlow({ categories, services, masters }: Props) {
           </Card>
 
           <Card>
-            <CardContent className="space-y-1 p-4 text-sm">
-              <p className="font-medium">
-                {chosen.map((s) => serviceName(s, locale)).join(' + ')}
-              </p>
-              <p className="text-muted-foreground">
-                {slot.date} · {slot.time} —{' '}
-                {masters.find((m) => m.id === masterId)?.name ?? t('anyMaster')}
-              </p>
+            <CardContent className="space-y-2 p-4 text-sm">
+              {chosen.map((s) => {
+                const leg = legFor(s);
+                const masterName =
+                  masters.find((m) => m.id === leg.masterId)?.name ?? t('anyMaster');
+                return (
+                  <div key={s.id} className="flex flex-wrap items-baseline gap-x-2">
+                    <p className="font-medium">{serviceName(s, locale)}</p>
+                    <p className="text-muted-foreground">
+                      {leg.date} · {leg.time} — {masterName}
+                    </p>
+                  </div>
+                );
+              })}
             </CardContent>
           </Card>
         </div>
@@ -398,7 +431,7 @@ export function BookingFlow({ categories, services, masters }: Props) {
             {tc('back')}
           </Button>
         )}
-        {step !== 3 ? (
+        {step !== 2 ? (
           <Button className="flex-1" size="lg" onClick={goNext}>
             {tc('next')}
           </Button>

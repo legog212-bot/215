@@ -3,6 +3,7 @@ import { createServiceClient, supabaseConfigured } from '@/lib/supabase/server';
 import { endTime, pickMasterForSlot } from '@/lib/booking';
 import { sendWhatsAppTemplate, whatsappConfigured } from '@/lib/whatsapp';
 import { bookingDates } from '@/lib/slots';
+import { timeToMinutes } from '@/lib/tz';
 import { serviceName, type BookingDetails } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
@@ -57,6 +58,30 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     if (!TIME_RE.test(start)) return NextResponse.json({ error: 'time' }, { status: 400 });
 
     const duration = b.services.reduce((a, s) => a + s.duration_minutes, 0);
+
+    // a leg of a multi-service visit can't be moved onto a sibling leg —
+    // the visitor can't be in two places at once
+    const { data: self } = await supabase
+      .from('bookings')
+      .select('id, group_id')
+      .eq('cancel_token', token)
+      .single();
+    if (self?.group_id) {
+      const { data: siblings } = await supabase
+        .from('bookings')
+        .select('booking_date, start_time, end_time')
+        .eq('group_id', self.group_id)
+        .eq('booking_date', date)
+        .eq('status', 'confirmed')
+        .neq('id', self.id);
+      const s0 = timeToMinutes(start);
+      const s1 = s0 + duration;
+      const clash = (siblings ?? []).some(
+        (x) => s0 < timeToMinutes(String(x.end_time)) && timeToMinutes(String(x.start_time)) < s1
+      );
+      if (clash) return NextResponse.json({ error: 'slot_taken' }, { status: 409 });
+    }
+
     const masterId = await pickMasterForSlot({
       supabase,
       date,

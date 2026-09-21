@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { bookingDates } from '@/lib/slots';
+import { timeToMinutes } from '@/lib/tz';
 import { cn } from '@/lib/utils';
 
 const LOCALE_TAGS: Record<string, string> = { ka: 'ka-GE', ru: 'ru-RU', en: 'en-GB' };
@@ -28,6 +29,12 @@ const MANUAL_ADMIN_SLOTS = [
   '19:00', '19:30', '20:00'
 ];
 
+export interface BlockedInterval {
+  date: string; // YYYY-MM-DD
+  startMin: number;
+  endMin: number;
+}
+
 interface BaseProps {
   serviceIds: string[];
   masterId: string | null; // null = any
@@ -36,6 +43,10 @@ interface BaseProps {
   labels: SlotPickerLabels;
   localeTag: string; // e.g. 'ka-GE'
   allowAllDates?: boolean;
+  /** Duration of THIS service — needed to test overlap with blocked intervals. */
+  durationMinutes?: number;
+  /** Intervals the visitor already occupies — those slots are hidden. */
+  blocked?: BlockedInterval[];
 }
 
 /** Pure slot picker — works outside next-intl (admin) when labels are passed in. */
@@ -47,6 +58,8 @@ export function SlotPickerBase({
   labels,
   localeTag,
   allowAllDates = false,
+  durationMinutes = 0,
+  blocked = [],
 }: BaseProps) {
   const dates = useMemo(() => bookingDates(), []);
   const [counts, setCounts] = useState<Record<string, number>>({});
@@ -101,7 +114,19 @@ export function SlotPickerBase({
   );
   const noonUtc = (d: string) => new Date(`${d}T12:00:00Z`);
 
-  const effectiveSlots = (daySlots && daySlots.length > 0) ? daySlots : (allowAllDates ? MANUAL_ADMIN_SLOTS : []);
+  const effectiveSlots = useMemo(() => {
+    const base = (daySlots && daySlots.length > 0)
+      ? daySlots
+      : (allowAllDates ? MANUAL_ADMIN_SLOTS : []);
+    if (!blocked.length || !durationMinutes || !value.date) return base;
+    const dayBlocked = blocked.filter((b) => b.date === value.date);
+    if (!dayBlocked.length) return base;
+    return base.filter((s) => {
+      const t0 = timeToMinutes(s);
+      const t1 = t0 + durationMinutes;
+      return !dayBlocked.some((b) => t0 < b.endMin && b.startMin < t1);
+    });
+  }, [daySlots, allowAllDates, blocked, durationMinutes, value.date]);
 
   return (
     <div className="space-y-4">

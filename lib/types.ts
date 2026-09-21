@@ -86,6 +86,30 @@ export interface BookingDetails {
   >[];
 }
 
+/** One leg of a multi-service visit — its own time, master and status. */
+export interface VisitLeg {
+  id: string;
+  cancel_token: string;
+  master_id: string | null;
+  master_name: string | null;
+  booking_date: string;
+  start_time: string;
+  end_time: string;
+  status: BookingStatus;
+  services: BookingDetails['services'];
+}
+
+/** Whole visit as returned by get_visit_by_token — shared header + legs. */
+export interface VisitDetails {
+  order_number: string;
+  client_name: string;
+  client_surname: string;
+  client_phone: string;
+  comment: string | null;
+  created_at: string;
+  legs: VisitLeg[];
+}
+
 export type Locale = 'ka' | 'ru' | 'en';
 
 export function serviceName(

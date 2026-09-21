@@ -122,10 +122,14 @@ function AdminNewBookingForm() {
         surname: form.surname.trim(),
         phone: form.phone.trim(),
         comment: form.comment.trim(),
-        serviceIds: [...selected],
-        masterId: masterId === 'any' ? null : masterId,
-        date: slot.date,
-        start: slot.time,
+        legs: [
+          {
+            serviceIds: [...selected],
+            masterId: masterId === 'any' ? null : masterId,
+            date: slot.date,
+            start: slot.time,
+          },
+        ],
         locale: 'ka',
         force,
       }),
