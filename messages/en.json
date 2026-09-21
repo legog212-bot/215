@@ -48,6 +48,7 @@
     "phoneInvalid": "Enter a valid phone number",
     "slotTaken": "This slot was just taken — pick another",
     "legsOverlap": "The selected services overlap in time — change one of them",
+    "rateLimited": "Too many attempts — wait a few minutes and try again",
     "genericError": "Something went wrong. Please try again."
   },
   "success": {

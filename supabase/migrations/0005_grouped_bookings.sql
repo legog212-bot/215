@@ -1,18 +1,18 @@
 -- Multi-service visits: each service becomes its own booking row ("leg"),
 -- linked by group_id and sharing one order number. The manage link is the
 -- group_id, so one URL manages the whole visit.
--- Idempotent — safe to run multiple times.
+-- Idempotent — safe to run multiple times. Fully schema-qualified.
 
-alter table bookings add column if not exists group_id uuid;
+alter table public.bookings add column if not exists group_id uuid;
 
 -- legs of one visit intentionally share the order number
-alter table bookings drop constraint if exists bookings_order_number_key;
+alter table public.bookings drop constraint if exists bookings_order_number_key;
 
-create index if not exists bookings_group_idx on bookings (group_id);
+create index if not exists bookings_group_idx on public.bookings (group_id);
 
 -- Atomic multi-leg booking: one order number, one group, each leg gets its
 -- own row + cancel_token. All-or-nothing — a conflict on any leg rolls back.
-create or replace function create_booking_group(
+create or replace function public.create_booking_group(
   p_name text,
   p_surname text,
   p_phone text,
@@ -34,12 +34,12 @@ begin
   from jsonb_array_elements(p_legs) as l;
 
   v_order := 'BK-' || extract(year from v_first_date)::int || '-' ||
-             lpad(nextval('booking_number_seq')::text, 4, '0');
+             lpad(nextval('public.booking_number_seq')::text, 4, '0');
 
   for v_leg in select * from jsonb_array_elements(p_legs) loop
     v_token := gen_random_uuid()::text;
 
-    insert into bookings (
+    insert into public.bookings (
       order_number, group_id, client_name, client_surname, client_phone,
       master_id, booking_date, start_time, end_time, cancel_token, comment, source
     ) values (
@@ -50,36 +50,33 @@ begin
       coalesce(nullif(p_source, ''), 'client')
     ) returning id into v_id;
 
-    insert into booking_services (booking_id, service_id)
+    insert into public.booking_services (booking_id, service_id)
     select v_id, x::uuid
     from jsonb_array_elements_text(v_leg->'service_ids') as x;
 
     v_legs := v_legs || jsonb_build_object('id', v_id, 'cancel_token', v_token);
   end loop;
 
-  return json_build_object(
-    'order_number', v_order,
-    'group_id', v_group,
-    'legs', v_legs::json
-  );
+  return json_build_object('order_number', v_order, 'group_id', v_group, 'legs', v_legs::json);
 end $$;
 
-revoke all on function create_booking_group from public, anon;
-grant execute on function create_booking_group(text, text, text, text, text, jsonb)
+revoke all on function public.create_booking_group(text, text, text, text, text, jsonb)
+  from public, anon;
+grant execute on function public.create_booking_group(text, text, text, text, text, jsonb)
   to authenticated, service_role;
 
 -- Visit read by token: accepts either a leg's cancel_token or the group_id.
 -- Returns the shared header plus every leg with its services — the manage
 -- page renders one card per leg.
-create or replace function get_visit_by_token(p_token text)
+create or replace function public.get_visit_by_token(p_token text)
 returns json
 language plpgsql security definer set search_path = public stable as $$
 declare
   v_group uuid;
-  v_head bookings%rowtype;
+  v_head public.bookings%rowtype;
   v_legs json;
 begin
-  select group_id into v_group from bookings where cancel_token = p_token;
+  select group_id into v_group from public.bookings where cancel_token = p_token;
 
   if not found then
     begin
@@ -87,12 +84,12 @@ begin
     exception when others then
       return null;
     end;
-    if not exists (select 1 from bookings where group_id = v_group) then
+    if not exists (select 1 from public.bookings where group_id = v_group) then
       return null;
     end if;
   end if;
 
-  select * into v_head from bookings
+  select * into v_head from public.bookings
   where (v_group is not null and group_id = v_group)
      or (v_group is null and cancel_token = p_token)
   order by booking_date, start_time
@@ -109,7 +106,7 @@ begin
       'id', b.id,
       'cancel_token', b.cancel_token,
       'master_id', b.master_id,
-      'master_name', (select name from masters where id = b.master_id),
+      'master_name', (select name from public.masters where id = b.master_id),
       'booking_date', b.booking_date,
       'start_time', b.start_time,
       'end_time', b.end_time,
@@ -120,12 +117,12 @@ begin
           'price_from', s.price_from, 'price_to', s.price_to,
           'duration_minutes', s.duration_minutes
         ))
-        from booking_services bs
-        join services s on s.id = bs.service_id
+        from public.booking_services bs
+        join public.services s on s.id = bs.service_id
         where bs.booking_id = b.id
       ), '[]'::json)
     ) as leg
-    from bookings b
+    from public.bookings b
     where (v_group is not null and b.group_id = v_group)
        or (v_group is null and b.cancel_token = p_token)
   ) t;
@@ -141,4 +138,4 @@ begin
   );
 end $$;
 
-grant execute on function get_visit_by_token(text) to anon, authenticated, service_role;
+grant execute on function public.get_visit_by_token(text) to anon, authenticated, service_role;

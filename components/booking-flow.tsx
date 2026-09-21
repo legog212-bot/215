@@ -175,7 +175,13 @@ export function BookingFlow({ categories, services, masters }: Props) {
         return;
       }
       if (!res.ok) {
-        setError(data.error === 'phone' ? t('phoneInvalid') : t('genericError'));
+        setError(
+          data.error === 'phone'
+            ? t('phoneInvalid')
+            : data.error === 'rate_limited'
+              ? t('rateLimited')
+              : t('genericError')
+        );
         return;
       }
       sessionStorage.setItem(
