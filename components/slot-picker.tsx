@@ -17,6 +17,8 @@ export interface SlotPickerLabels {
   chooseTime: string;
   noSlots: string;
   loading: string;
+  /** Shown when manual (day-off) slots are offered — admin only. */
+  manualHint?: string;
 }
 
 const MANUAL_ADMIN_SLOTS = [
@@ -139,10 +141,8 @@ export function SlotPickerBase({
             <p className="text-sm text-muted-foreground">{labels.loading}</p>
           ) : effectiveSlots.length > 0 ? (
             <div className="space-y-2">
-              {(!daySlots || daySlots.length === 0) && allowAllDates && (
-                <p className="text-xs text-muted-foreground italic">
-                  Выходной день или нет свободных окон — доступен ручной выбор времени для записи:
-                </p>
+              {(!daySlots || daySlots.length === 0) && allowAllDates && labels.manualHint && (
+                <p className="text-xs italic text-muted-foreground">{labels.manualHint}</p>
               )}
               <div className="grid grid-cols-4 gap-2 sm:grid-cols-6">
                 {effectiveSlots.map((s) => (

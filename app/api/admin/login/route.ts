@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
 
   if (!hash) {
     return NextResponse.json(
-      { error: 'Пароль админа не настроен в Netlify' },
+      { error: 'not_configured' },
       { status: 503 }
     );
   }
@@ -48,7 +48,7 @@ export async function POST(req: NextRequest) {
   const isValid = await bcrypt.compare(password, hash).catch(() => false);
 
   if (!isValid) {
-    return NextResponse.json({ error: 'Неверный пароль' }, { status: 401 });
+    return NextResponse.json({ error: 'invalid_password' }, { status: 401 });
   }
 
   // Password verified! Now establish the authenticated Supabase session for admin RLS queries

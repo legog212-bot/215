@@ -26,6 +26,7 @@
     "chooseServices": "Choose one or more services",
     "chooseMaster": "Choose a specialist",
     "anyMaster": "Any specialist",
+    "anyMasterHint": "Earliest available time",
     "chooseDate": "Choose a date",
     "chooseTime": "Choose a time",
     "noSlots": "No free slots for this day",
@@ -73,6 +74,7 @@
     "saveNewTime": "Save",
     "cancelled": "Booking cancelled",
     "updated": "Time updated",
+    "actionFailed": "Could not complete the action. Please try again.",
     "statuses": {
       "confirmed": "Confirmed",
       "cancelled": "Cancelled",

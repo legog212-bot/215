@@ -63,6 +63,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       start,
       durationMinutes: duration,
       preferredId: b.master_id,
+      excludeBookingId: b.id,
     });
     if (!masterId) return NextResponse.json({ error: 'slot_taken' }, { status: 409 });
 

@@ -27,13 +27,20 @@ async function hoursFor(
   return (data as WorkingHours) ?? null;
 }
 
-async function busyFor(supabase: SupabaseClient, masterId: string | null, date: string) {
+async function busyFor(
+  supabase: SupabaseClient,
+  masterId: string | null,
+  date: string,
+  excludeBookingId?: string | null
+) {
   let q = supabase
     .from('bookings')
     .select('start_time, end_time')
     .eq('booking_date', date)
     .eq('status', 'confirmed');
   q = masterId ? q.eq('master_id', masterId) : q.is('master_id', null);
+  // when rescheduling, the booking being moved must not block itself
+  if (excludeBookingId) q = q.neq('id', excludeBookingId);
   const { data } = await q;
   return data ?? [];
 }
@@ -70,9 +77,11 @@ export async function activeMasters(
           masterCatMap.get(row.master_id)!.add(row.category_id);
         }
 
+        // A master with no categories assigned is treated as a generalist —
+        // same rule the booking UI applies, so slots and assignment agree.
         const qualified = list.filter((m) => {
           const cats = masterCatMap.get(m.id);
-          if (!cats) return false;
+          if (!cats || cats.size === 0) return true;
           return requiredCategoryIds.every((cid) => cats.has(cid));
         });
 
@@ -281,8 +290,19 @@ export async function pickMasterForSlot(params: {
   preferredId: string | null;
   serviceIds?: string[];
   allowDayOff?: boolean;
+  /** Ignore this booking when checking overlaps (used when rescheduling it). */
+  excludeBookingId?: string | null;
 }): Promise<string | null> {
-  const { supabase, date, start, durationMinutes, preferredId, serviceIds, allowDayOff } = params;
+  const {
+    supabase,
+    date,
+    start,
+    durationMinutes,
+    preferredId,
+    serviceIds,
+    allowDayOff,
+    excludeBookingId,
+  } = params;
   const candidates = preferredId
     ? ([{ id: preferredId }] as { id: string }[])
     : await activeMasters(supabase, serviceIds);
@@ -297,7 +317,7 @@ export async function pickMasterForSlot(params: {
       if (startMin < timeToMinutes(hours.open_time) || endMin > timeToMinutes(hours.close_time))
         continue;
     }
-    const busy = await busyFor(supabase, m.id, date);
+    const busy = await busyFor(supabase, m.id, date, excludeBookingId);
     const overlaps = busy.some(
       (b) => startMin < timeToMinutes(b.end_time) && timeToMinutes(b.start_time) < endMin
     );

@@ -39,17 +39,22 @@ export function ManageBooking({ booking, token }: { booking: BookingDetails; tok
 
   const cancel = async () => {
     setBusy(true);
+    setError(null);
     try {
       const res = await fetch(`/api/bookings/${token}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'cancel' }),
       });
-      if (res.ok) {
-        const data = await res.json();
-        setCurrent(data);
-        setConfirmOpen(false);
+      if (!res.ok) {
+        setError('failed');
+        return;
       }
+      const data = await res.json();
+      setCurrent(data);
+      setConfirmOpen(false);
+    } catch {
+      setError('failed');
     } finally {
       setBusy(false);
     }
@@ -69,11 +74,15 @@ export function ManageBooking({ booking, token }: { booking: BookingDetails; tok
         setError('slot_taken');
         return;
       }
-      if (res.ok) {
-        const data = await res.json();
-        setCurrent(data);
-        setReschedOpen(false);
+      if (!res.ok) {
+        setError('failed');
+        return;
       }
+      const data = await res.json();
+      setCurrent(data);
+      setReschedOpen(false);
+    } catch {
+      setError('failed');
     } finally {
       setBusy(false);
     }
@@ -137,6 +146,9 @@ export function ManageBooking({ booking, token }: { booking: BookingDetails; tok
             <DialogTitle>{t('cancel')}</DialogTitle>
           </DialogHeader>
           <p className="text-sm text-muted-foreground">{t('confirmCancel')}</p>
+          {error === 'failed' && (
+            <p className="text-sm font-medium text-destructive">{t('actionFailed')}</p>
+          )}
           <div className="flex gap-3">
             <Button variant="outline" className="flex-1" onClick={() => setConfirmOpen(false)}>
               {t('keepIt')}
@@ -161,6 +173,9 @@ export function ManageBooking({ booking, token }: { booking: BookingDetails; tok
           />
           {error === 'slot_taken' && (
             <p className="text-sm font-medium text-destructive">{tb('slotTaken')}</p>
+          )}
+          {error === 'failed' && (
+            <p className="text-sm font-medium text-destructive">{t('actionFailed')}</p>
           )}
           <Button
             className={cn('w-full')}

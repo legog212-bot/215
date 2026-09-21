@@ -91,8 +91,34 @@ export function BookingEditSheet({ booking, masters, categories, services, onClo
   const save = async () => {
     if (!selected.size) return toast.error(t('bookingForm.fillFields'));
     if (!date || !time) return toast.error(t('bookingForm.selectSlot'));
+    if (!name.trim() || !surname.trim() || !phone.trim()) {
+      return toast.error(t('bookingForm.fillFields'));
+    }
     setBusy(true);
-    const end = minutesToTime(timeToMinutes(time) + duration);
+    const startMin = timeToMinutes(time);
+    const endMin = startMin + duration;
+    const end = minutesToTime(endMin);
+
+    // the DB index only catches an identical start_time, so check the whole
+    // interval here — otherwise 10:00–12:00 and 11:00–13:00 could coexist
+    let overlapQuery = supabase
+      .from('bookings')
+      .select('start_time, end_time')
+      .eq('booking_date', date)
+      .eq('status', 'confirmed')
+      .neq('id', booking.id);
+    overlapQuery =
+      masterId === 'none'
+        ? overlapQuery.is('master_id', null)
+        : overlapQuery.eq('master_id', masterId);
+    const { data: sameDay } = await overlapQuery;
+    const clash = (sameDay ?? []).some(
+      (b) => startMin < timeToMinutes(b.end_time) && timeToMinutes(b.start_time) < endMin
+    );
+    if (clash) {
+      setBusy(false);
+      return toast.error(t('bookingForm.overlap'));
+    }
 
     const { error: upErr } = await supabase
       .from('bookings')
@@ -114,14 +140,27 @@ export function BookingEditSheet({ booking, masters, categories, services, onClo
       return toast.error(upErr.message || t('actions.error'));
     }
 
-    // replace services
-    await supabase.from('booking_services').delete().eq('booking_id', booking.id);
-    const { error: svcErr } = await supabase
-      .from('booking_services')
-      .insert([...selected].map((service_id) => ({ booking_id: booking.id, service_id })));
+    // replace services only when the selection actually changed, so a failed
+    // insert can't leave the booking with no services at all
+    const before = new Set((booking.booking_services ?? []).map((bs) => bs.service_id));
+    const changed =
+      before.size !== selected.size || [...selected].some((id) => !before.has(id));
+    if (changed) {
+      await supabase.from('booking_services').delete().eq('booking_id', booking.id);
+      const { error: svcErr } = await supabase
+        .from('booking_services')
+        .insert([...selected].map((service_id) => ({ booking_id: booking.id, service_id })));
+      if (svcErr) {
+        setBusy(false);
+        // restore the previous set so the booking never ends up empty
+        await supabase
+          .from('booking_services')
+          .insert([...before].map((service_id) => ({ booking_id: booking.id, service_id })));
+        return toast.error(svcErr.message || t('actions.error'));
+      }
+    }
 
     setBusy(false);
-    if (svcErr) return toast.error(svcErr.message || t('actions.error'));
     toast.success(t('actions.saved'));
     onSaved();
     onClose();
@@ -257,11 +296,13 @@ export function BookingEditSheet({ booking, masters, categories, services, onClo
                   setTime(v.time);
                 }}
                 localeTag={lang === 'ka' ? 'ka-GE' : 'ru-RU'}
+                allowAllDates
                 labels={{
                   chooseDate: t('bookingForm.date'),
                   chooseTime: t('bookingForm.time'),
                   noSlots: t('bookingForm.noSlots'),
                   loading: t('actions.loading'),
+                  manualHint: t('calendar.manualSlotsHint'),
                 }}
               />
             </div>

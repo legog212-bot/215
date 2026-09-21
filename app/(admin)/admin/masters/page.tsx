@@ -119,12 +119,12 @@ export default function AdminMastersPage() {
     if (!file) return;
 
     if (!file.type.startsWith('image/')) {
-      toast.error('Выберите изображение (JPG, PNG, WEBP)');
+      toast.error(t('masters.photoTypeError'));
       return;
     }
 
     if (file.size > 5 * 1024 * 1024) {
-      toast.error('Размер файла не должен превышать 5MB');
+      toast.error(t('masters.photoSizeError'));
       return;
     }
 
@@ -143,10 +143,10 @@ export default function AdminMastersPage() {
 
       const { data: publicUrlData } = supabase.storage.from('masters').getPublicUrl(filename);
       setPhotoUrl(publicUrlData.publicUrl);
-      toast.success('Фото успешно загружено');
+      toast.success(t('masters.photoUploaded'));
     } catch (err: unknown) {
       console.error('Photo upload error:', err);
-      toast.error('Не удалось загрузить фото. Проверьте права хранилища.');
+      toast.error(t('masters.photoUploadError'));
     } finally {
       setUploadingPhoto(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -164,7 +164,7 @@ export default function AdminMastersPage() {
 
   const save = async () => {
     if (!firstName.trim()) {
-      toast.error('Укажите имя мастера');
+      toast.error(t('masters.nameRequired'));
       return;
     }
 
@@ -262,7 +262,7 @@ export default function AdminMastersPage() {
   // Soft delete preserving booking history
   const removeMaster = async (m: Master) => {
     const confirmed = confirm(
-      `${t('masters.deleteConfirm')}\n\nМастер: ${m.first_name ? `${m.first_name} ${m.last_name || ''}` : m.name}`
+      `${t('masters.deleteConfirm')}\n\n${getMasterDisplayName(m)}`
     );
     if (!confirmed) return;
 
@@ -312,7 +312,7 @@ export default function AdminMastersPage() {
         <div>
           <h1 className="text-xl font-bold text-brand-ink">{t('nav.masters')}</h1>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Управление мастерами, фото и специализацией по разделам услуг
+            {t('masters.subtitle')}
           </p>
         </div>
         <Button onClick={openAddDialog} className="bg-primary text-white hover:bg-primary/90">
@@ -375,9 +375,9 @@ export default function AdminMastersPage() {
                         </p>
                         <p className="text-xs text-muted-foreground">
                           {m.is_active ? (
-                            <span className="text-emerald-600 font-medium">● Активен</span>
+                            <span className="text-emerald-600 font-medium">● {t('masters.isActive')}</span>
                           ) : (
-                            <span className="text-muted-foreground">Неактивен</span>
+                            <span className="text-muted-foreground">{t('masters.isInactive')}</span>
                           )}
                         </p>
                       </div>
@@ -388,7 +388,7 @@ export default function AdminMastersPage() {
                       <Switch
                         checked={m.is_active}
                         onCheckedChange={() => toggleMasterActive(m)}
-                        title={m.is_active ? 'Деактивировать' : 'Активировать'}
+                        title={m.is_active ? t('masters.deactivate') : t('masters.activate')}
                       />
                     </div>
                   </div>
@@ -433,7 +433,7 @@ export default function AdminMastersPage() {
                       size="sm"
                       className="h-8 text-xs font-medium text-destructive hover:bg-destructive/10"
                       onClick={() => removeMaster(m)}
-                      title="Удалить мастера (сохраняя историю записей)"
+                      title={t('masters.deleteTitle')}
                     >
                       <Trash2 className="mr-1 h-3.5 w-3.5" />
                       {t('actions.delete')}
@@ -471,7 +471,7 @@ export default function AdminMastersPage() {
                       type="button"
                       onClick={() => setPhotoUrl('')}
                       className="absolute inset-0 flex items-center justify-center bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity text-white"
-                      title="Удалить фото"
+                      title={t('masters.removePhoto')}
                     >
                       <X className="h-6 w-6" />
                     </button>
@@ -482,7 +482,7 @@ export default function AdminMastersPage() {
                     className="flex h-24 w-24 cursor-pointer flex-col items-center justify-center rounded-full border-2 border-dashed border-brand-gold/50 bg-brand-gold/5 text-brand-gold hover:bg-brand-gold/10 transition-colors"
                   >
                     <Camera className="h-6 w-6 mb-1" />
-                    <span className="text-[10px] font-medium text-center px-1">Добавить фото</span>
+                    <span className="text-[10px] font-medium text-center px-1">{t('masters.addPhoto')}</span>
                   </div>
                 )}
               </div>
@@ -504,7 +504,7 @@ export default function AdminMastersPage() {
                 disabled={uploadingPhoto}
               >
                 <Upload className="mr-1.5 h-3 w-3" />
-                {uploadingPhoto ? 'Загрузка…' : t('masters.photoUpload')}
+                {uploadingPhoto ? t('masters.uploading') : t('masters.photoUpload')}
               </Button>
             </div>
 
@@ -552,7 +552,7 @@ export default function AdminMastersPage() {
                     }
                   }}
                 >
-                  {selectedCategoryIds.size === categories.length ? 'Снять все' : 'Выбрать все'}
+                  {selectedCategoryIds.size === categories.length ? t('masters.clearAll') : t('masters.selectAll')}
                 </button>
               </div>
 
@@ -584,7 +584,7 @@ export default function AdminMastersPage() {
             <div className="flex items-center justify-between rounded-xl border border-black/10 p-3">
               <div>
                 <p className="text-sm font-medium text-brand-ink">{t('masters.active')}</p>
-                <p className="text-xs text-muted-foreground">Доступен для новых записей</p>
+                <p className="text-xs text-muted-foreground">{t('masters.activeHint')}</p>
               </div>
               <Switch checked={isActive} onCheckedChange={setIsActive} />
             </div>

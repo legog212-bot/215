@@ -23,7 +23,7 @@ import { toast } from 'sonner';
 
 export default function AdminNewBookingPage() {
   return (
-    <Suspense fallback={<p className="p-6 text-center text-sm text-muted-foreground">Загрузка…</p>}>
+    <Suspense fallback={<p className="p-6 text-center text-sm text-muted-foreground">…</p>}>
       <AdminNewBookingForm />
     </Suspense>
   );
@@ -249,6 +249,7 @@ function AdminNewBookingForm() {
             chooseTime: t('bookingForm.time'),
             noSlots: t('bookingForm.noSlots'),
             loading: t('actions.loading'),
+            manualHint: t('calendar.manualSlotsHint'),
           }}
           allowAllDates={true}
         />

@@ -28,13 +28,11 @@ export default function AdminLoginPage() {
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         if (res.status === 503) {
-          setError('Supabase не настроен в Netlify (проверьте переменные окружения).');
+          setError(t('login.notConfigured'));
         } else if (res.status === 429) {
-          setError('Слишком много попыток входа. Подождите 1 минуту.');
+          setError(t('login.rateLimited'));
         } else if (data.error === 'Invalid login credentials' || res.status === 401) {
-          setError('Неверный пароль.');
-        } else if (data.error === 'Email not confirmed') {
-          setError('Email не подтверждён в Supabase. Отметьте "Auto Confirm User" в Supabase Dashboard.');
+          setError(t('login.wrongPassword'));
         } else {
           setError(data.error || t('login.error'));
         }
@@ -51,7 +49,7 @@ export default function AdminLoginPage() {
       }
       window.location.href = '/admin/calendar';
     } catch {
-      setError('Ошибка сети при входе. Попробуйте ещё раз.');
+      setError(t('login.networkError'));
       setBusy(false);
     }
   };

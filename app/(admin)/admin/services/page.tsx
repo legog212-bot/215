@@ -117,7 +117,7 @@ export default function AdminServicesPage() {
     const { error } = await supabase.from('services').delete().eq('id', id);
     if (error) {
       if (error.code === '23503') {
-        toast.error('Нельзя удалить услугу с существующими записями. Отключите её переключателем.');
+        toast.error(t('services.deleteServiceInUse'));
       } else {
         toast.error(error.message || t('actions.error'));
       }
@@ -132,7 +132,7 @@ export default function AdminServicesPage() {
     const { error } = await supabase.from('service_categories').delete().eq('id', id);
     if (error) {
       if (error.code === '23503') {
-        toast.error('Нельзя удалить категорию с привязанными услугами.');
+        toast.error(t('services.deleteCategoryInUse'));
       } else {
         toast.error(error.message || t('actions.error'));
       }

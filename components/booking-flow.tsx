@@ -260,7 +260,7 @@ export function BookingFlow({ categories, services, masters }: Props) {
                     masterId === null ? 'text-primary-foreground/80' : 'text-muted-foreground'
                   )}
                 >
-                  Ближайшее свободное время
+                  {t('anyMasterHint')}
                 </p>
               </div>
             </button>

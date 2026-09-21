@@ -83,10 +83,8 @@ export async function POST(req: NextRequest) {
       serviceIds,
       allowDayOff: isManager,
     });
-    if (!masterId && isManager && requestedMaster) {
-      // If admin selected this master on a day-off without conflicting booking, allow
-      masterId = requestedMaster;
-    }
+    // No silent fallback for admins: day-offs are already allowed above, so a
+    // null here means a real overlap — answer 409 and let them confirm (force).
     if (!masterId) return NextResponse.json({ error: 'slot_taken' }, { status: 409 });
   }
 

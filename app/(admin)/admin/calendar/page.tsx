@@ -231,7 +231,7 @@ export default function AdminCalendarPage() {
             variant="ghost"
             size="icon"
             onClick={() => shift(-1)}
-            title={view === 'day' ? 'Предыдущий день' : 'Предыдущая неделя'}
+            title={view === 'day' ? t('calendar.prevDay') : t('calendar.prevWeek')}
             className="h-8 w-8 rounded-lg"
           >
             <ChevronLeft className="h-4 w-4" />
@@ -245,7 +245,7 @@ export default function AdminCalendarPage() {
             variant="ghost"
             size="icon"
             onClick={() => shift(1)}
-            title={view === 'day' ? 'Следующий день' : 'Следующая неделя'}
+            title={view === 'day' ? t('calendar.nextDay') : t('calendar.nextWeek')}
             className="h-8 w-8 rounded-lg"
           >
             <ChevronRight className="h-4 w-4" />
@@ -348,7 +348,7 @@ export default function AdminCalendarPage() {
                 <div className="flex h-3 items-center justify-center">
                   {hasBookings ? (
                     <span
-                      title="Есть записи на этот день"
+                      title={t('calendar.hasBookings')}
                       className={cn(
                         'h-1.5 w-1.5 rounded-full ring-1 ring-white/50',
                         isSelected ? 'bg-brand-gold' : 'bg-brand-gold shadow-2xs'
@@ -361,7 +361,7 @@ export default function AdminCalendarPage() {
                         isSelected ? 'text-white/60' : 'text-muted-foreground/60'
                       )}
                     >
-                      вых
+                      {t('calendar.dayOffShort')}
                     </span>
                   ) : (
                     <span className="h-1.5 w-1.5" />
@@ -451,8 +451,8 @@ export default function AdminCalendarPage() {
                   </p>
                   <p className="text-xs text-muted-foreground max-w-xs mt-1">
                     {isCurrentCursorSunday
-                      ? 'Онлайн-запись для клиентов отключена на выходные дни, но вы можете вручную записать клиента.'
-                      : 'На выбранный день записей пока нет.'}
+                      ? t('calendar.dayOffHint')
+                      : t('calendar.noBookingsHint')}
                   </p>
                 </div>
                 <Button asChild size="sm" variant="outline" className="border-brand-gold/60 text-brand-ink">
@@ -487,7 +487,7 @@ export default function AdminCalendarPage() {
                     setCursor(d);
                     setView('day');
                   }}
-                  title="Нажмите, чтобы открыть день"
+                  title={t('calendar.openDay')}
                 >
                   <div className="flex items-center gap-2">
                     <h3 className="text-sm font-bold capitalize text-brand-ink hover:text-brand-gold transition-colors">
