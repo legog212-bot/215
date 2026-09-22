@@ -35,3 +35,10 @@
     @apply bg-background text-foreground antialiased;
   }
 }
+
+/* PWA standalone mode: lift bottom nav above iPhone home indicator */
+@media (display-mode: standalone) {
+  .admin-bottom-nav {
+    padding-bottom: env(safe-area-inset-bottom, 8px);
+  }
+}
