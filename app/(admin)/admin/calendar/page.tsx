@@ -65,6 +65,7 @@ export default function AdminCalendarPage() {
   // filters
   const [masterFilter, setMasterFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<BookingStatus | 'all'>('all');
+  const [serviceFilter, setServiceFilter] = useState<string>('all');
 
   // Compute Monday-to-Sunday 7-day strip around the cursor date
   const weekStart = useMemo(() => {
@@ -148,11 +149,12 @@ export default function AdminCalendarPage() {
 
   const dayNumber = (d: string) => d.split('-')[2];
 
-  // Visible bookings filtered by master and status
+  // Visible bookings filtered by master, status, and service
   const visible = bookings.filter(
     (b) =>
       (masterFilter === 'all' || b.master_id === masterFilter) &&
-      (statusFilter === 'all' || b.status === statusFilter)
+      (statusFilter === 'all' || b.status === statusFilter) &&
+      (serviceFilter === 'all' || (b.booking_services ?? []).some((bs) => bs.service_id === serviceFilter))
   );
 
   // Check if a date has any bookings in the database (regardless of status filter, to show dot indicator)
@@ -407,6 +409,27 @@ export default function AdminCalendarPage() {
                   {s === 'all' ? t('calendar.allStatuses') : t(`statuses.${s}`)}
                 </SelectItem>
               ))}
+            </SelectContent>
+          </Select>
+
+          {/* Service Select */}
+          <Select value={serviceFilter} onValueChange={setServiceFilter}>
+            <SelectTrigger className="h-8 w-[160px] text-xs">
+              <SelectValue placeholder={t('calendar.allServices')} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all" className="text-xs">
+                {t('calendar.allServices')}
+              </SelectItem>
+              {categories.map((c) => {
+                const catServices = services.filter((s) => s.category_id === c.id);
+                if (!catServices.length) return null;
+                return catServices.map((s) => (
+                  <SelectItem key={s.id} value={s.id} className="text-xs">
+                    {serviceName(s, lang)}
+                  </SelectItem>
+                ));
+              })}
             </SelectContent>
           </Select>
         </div>
