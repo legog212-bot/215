@@ -9,6 +9,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     <html lang="ka" suppressHydrationWarning>
       <head>
         <title>№215 Admin</title>
+        <link rel="manifest" href="/admin/manifest" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-title" content="№215 Admin" />
         {/* sync html lang from localStorage before paint to avoid flash */}
         <script dangerouslySetInnerHTML={{ __html: `try{var l=localStorage.getItem('admin-lang');if(l)document.documentElement.lang=l}catch(e){}` }} />
       </head>

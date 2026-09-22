@@ -82,12 +82,12 @@ export function AdminNav() {
               key={href}
               href={href}
               className={cn(
-                'flex flex-col items-center gap-1 py-2 text-[10px] font-medium',
+                'flex flex-col items-center gap-0.5 py-2 text-[10px] leading-tight font-medium text-center overflow-hidden',
                 pathname.startsWith(href) ? 'text-brand-gold' : 'text-muted-foreground'
               )}
             >
-              <Icon className="h-5 w-5" />
-              {t(key)}
+              <Icon className="h-5 w-5 shrink-0" />
+              <span className="w-full truncate px-0.5">{t(key)}</span>
             </Link>
           ))}
         </div>
