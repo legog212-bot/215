@@ -26,15 +26,23 @@ export default async function BookingPage({
 
   if (supabaseConfigured()) {
     const supabase = createAnonServerClient();
-    const [{ data: cats }, { data: svcs }, { data: mstrs }, mCatsRes] = await Promise.all([
+    const [{ data: cats }, { data: svcs }, { data: mstrs }] = await Promise.all([
       supabase.from('service_categories').select('*').eq('is_active', true).order('sort_order'),
       supabase.from('services').select('*').eq('is_active', true).order('sort_order'),
       supabase.from('masters').select('*').eq('is_active', true).order('created_at'),
-      supabase.from('master_categories').select('*').then((r) => r.data ?? [], () => []),
     ]);
     categories = cats ?? [];
     services = svcs ?? [];
-    const mCats = Array.isArray(mCatsRes) ? mCatsRes : [];
+
+    // master_categories may not exist yet (migration 0004 pending) — safe fallback
+    let mCats: { master_id: string; category_id: string }[] = [];
+    try {
+      const { data } = await supabase.from('master_categories').select('*');
+      mCats = (data as { master_id: string; category_id: string }[]) ?? [];
+    } catch {
+      // table does not exist yet — no specialization binding
+    }
+
     const catMap = new Map<string, string[]>();
     for (const mc of mCats) {
       if (!catMap.has(mc.master_id)) catMap.set(mc.master_id, []);
