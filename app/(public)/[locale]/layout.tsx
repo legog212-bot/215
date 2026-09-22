@@ -22,7 +22,7 @@ export default async function LocaleLayout({
 
   return (
     <html lang={locale}>
-      <body className="bg-[#faf8f4]">
+      <body className="bg-[#faf8f4]" style={{ backgroundColor: '#faf8f4' }}>
         <NextIntlClientProvider>
           <div className="mx-auto flex min-h-dvh max-w-lg flex-col">
             <header className="sticky top-0 z-30 flex items-center justify-between border-b border-black/5 bg-[#faf8f4]/80 px-4 py-2.5 backdrop-blur-md">

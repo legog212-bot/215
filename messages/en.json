@@ -38,6 +38,7 @@
     "comment": "Comment",
     "commentPlaceholder": "optional",
     "confirm": "Confirm booking",
+    "total": "Total",
     "submitting": "Sending…",
     "totalDuration": "Duration",
     "totalPrice": "Price",

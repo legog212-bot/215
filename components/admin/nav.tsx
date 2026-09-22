@@ -75,7 +75,7 @@ export function AdminNav() {
       </header>
 
       {/* bottom tab bar — mobile-first */}
-      <nav className="fixed inset-x-0 bottom-0 z-40 border-t bg-background/95 backdrop-blur">
+      <nav className="fixed inset-x-0 bottom-0 z-40 border-t bg-background/95 backdrop-blur" style={{ paddingBottom: 'env(safe-area-inset-bottom, 4px)' }}>
         <div className="mx-auto grid max-w-3xl grid-cols-6">
           {ITEMS.map(({ href, key, icon: Icon }) => (
             <Link

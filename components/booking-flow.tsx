@@ -416,14 +416,29 @@ export function BookingFlow({ categories, services, masters }: Props) {
                 const masterName =
                   masters.find((m) => m.id === leg.masterId)?.name ?? t('anyMaster');
                 return (
-                  <div key={s.id} className="flex flex-wrap items-baseline gap-x-2">
-                    <p className="font-medium">{serviceName(s, locale)}</p>
-                    <p className="text-muted-foreground">
-                      {leg.date} · {leg.time} — {masterName}
+                  <div key={s.id} className="flex flex-wrap items-baseline justify-between gap-x-2">
+                    <div>
+                      <p className="font-medium">{serviceName(s, locale)}</p>
+                      <p className="text-muted-foreground">
+                        {leg.date} · {leg.time} — {masterName}
+                      </p>
+                    </div>
+                    <p className="font-semibold text-brand-ink whitespace-nowrap">
+                      {formatPrice(s)}
                     </p>
                   </div>
                 );
               })}
+              {chosen.length > 0 && (
+                <div className="border-t pt-2 mt-1 flex items-baseline justify-between">
+                  <p className="font-semibold">{t('total')}</p>
+                  <p className="font-bold text-brand-ink text-base">
+                    {priceFrom === priceTo
+                      ? `${priceFrom} ₾`
+                      : `${priceFrom}–${priceTo} ₾`}
+                  </p>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
