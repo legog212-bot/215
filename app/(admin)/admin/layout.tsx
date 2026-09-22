@@ -14,7 +14,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <meta name="apple-mobile-web-app-title" content="№215 Admin" />
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
         {/* sync html lang from localStorage before paint to avoid flash */}
-        <script dangerouslySetInnerHTML={{ __html: `try{var l=localStorage.getItem('admin-lang');if(l)document.documentElement.lang=l}catch(e){}` }} />
+        {/* detect iOS standalone PWA and add class for safe-area fallback */}
+        <script dangerouslySetInnerHTML={{ __html: `try{var l=localStorage.getItem('admin-lang');if(l)document.documentElement.lang=l}catch(e){}try{if(window.navigator.standalone||window.matchMedia('(display-mode:standalone)').matches)document.documentElement.classList.add('pwa-standalone')}catch(e){}` }} />
       </head>
       <body style={{ backgroundColor: '#ffffff' }}>
         <AdminLangProvider>

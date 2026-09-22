@@ -36,9 +36,23 @@
   }
 }
 
-/* PWA standalone mode: lift bottom nav above iPhone home indicator */
+/*
+ * Safe-area padding for iPhone home indicator.
+ * env(safe-area-inset-bottom) returns 0 in regular browsers, so this
+ * is harmless outside standalone/PWA mode.
+ */
+.admin-bottom-nav {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* Extra: force a minimum padding in PWA standalone mode */
 @media (display-mode: standalone) {
   .admin-bottom-nav {
-    padding-bottom: env(safe-area-inset-bottom, 8px);
+    padding-bottom: max(20px, env(safe-area-inset-bottom, 20px));
   }
+}
+
+/* JS-based fallback for iOS standalone (navigator.standalone) */
+.pwa-standalone .admin-bottom-nav {
+  padding-bottom: max(20px, env(safe-area-inset-bottom, 20px));
 }
