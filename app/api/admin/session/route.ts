@@ -50,11 +50,20 @@ export async function GET(req: NextRequest) {
     try {
       const { createServiceClient } = await import('@/lib/supabase/server');
       const serviceClient = createServiceClient();
-      await serviceClient.auth.admin.createUser({
-        email: targetEmail,
-        password: authPassword,
-        email_confirm: true,
-      });
+      const { data: usersData } = await serviceClient.auth.admin.listUsers();
+      const existing = usersData?.users?.find((u) => u.email === targetEmail);
+      if (existing) {
+        await serviceClient.auth.admin.updateUserById(existing.id, {
+          password: authPassword,
+          email_confirm: true,
+        });
+      } else {
+        await serviceClient.auth.admin.createUser({
+          email: targetEmail,
+          password: authPassword,
+          email_confirm: true,
+        });
+      }
       signRes = await supabase.auth.signInWithPassword({
         email: targetEmail,
         password: authPassword,
